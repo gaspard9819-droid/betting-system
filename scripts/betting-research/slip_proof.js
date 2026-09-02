@@ -35,11 +35,23 @@ for(const T of [10,20,50]){
   }
   console.log();
 }
-console.log('Az algoritmus a legkisebb n-t valasztja. Ellenorizzuk, hogy az a legjobb EV:');
+// FONTOS: az algoritmus a legkisebb n-t valasztja, DE csak a @5.00-os puha
+// odds-plafonon belul. Ahol a plafon tobb labra kenyszerit, ott az EV
+// tudatosan alacsonyabb - ez a plafon ara. Ezert ket oszlopot mutatunk.
+console.log('Az algoritmus a legkisebb n-t valasztja a @5.00 plafonon BELUL.');
+console.log('A plafon ara latszik, ahol a ket oszlop eltér:\n');
+console.log('  cel     plafonnal (eles)        plafon nelkul (regi)');
 for(const T of [10,20,50]){
-  const auto=buildSlip(pool,{target:T,maxLegs:8,poolCap:60});
-  if(!auto.ok)continue;
-  const prod=auto.legs.reduce((a,l)=>a*l.tippmix_odds,1);
-  const jp=auto.legs.reduce((a,l)=>a*l.model_prob,1);
-  console.log(`  ${String(T+'x').padEnd(6)} automatikusan ${auto.n} lab -> EV ${(jp*prod).toFixed(4)}`);
+  const on =buildSlip(pool,{target:T,maxLegs:8,poolCap:60});
+  const off=buildSlip(pool,{target:T,maxLegs:8,poolCap:60,maxLegOdds:Infinity});
+  const ev=r=>{ if(!r.ok) return null;
+    const prod=r.legs.reduce((a,l)=>a*l.tippmix_odds,1);
+    const jp=r.legs.reduce((a,l)=>a*l.model_prob,1);
+    const top=Math.max(...r.legs.map(l=>l.tippmix_odds));
+    return `${r.n} lab, max @${top.toFixed(2)}, EV ${(jp*prod).toFixed(4)}`; };
+  const a=ev(on), b=ev(off);
+  if(!a||!b)continue;
+  console.log(`  ${String(T+'x').padEnd(6)}  ${a.padEnd(26)}${b}${a!==b?'':'   (azonos)'}`);
 }
+console.log('\nAhol tobb lab lett: ez a tudatos csere - nincs extrem lab,');
+console.log('cserebe labankent ~8% margo. Lasd workflows/README.md.');

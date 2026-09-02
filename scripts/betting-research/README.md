@@ -79,6 +79,7 @@ Added while building `workflows/Slip Builder.json`.
 | `slip.js` | The slip-building algorithm, identical to the `Build Response` node. |
 | `slip_test.js` | Targets 1.5x–500x, parameter combinations, edge cases, invariant checks. |
 | `slip_proof.js` | Forces different leg counts at the same target and compares expected value. |
+| `cap_check.js` | Before/after for the @5.00 soft odds ceiling, 3x–500x. |
 
 `slip_test.js` and `slip_proof.js` generate their own synthetic slate — no data download
 needed:
@@ -96,6 +97,13 @@ node slip_proof.js
   smallest workable leg count.
 - **Stratified pool selection is required.** Capping the candidate pool by quality alone
   drops every high-odds leg, and targets of 50x+ become unreachable. Keep the band split.
+- **Fewest-legs needs an odds ceiling to be safe.** On its own it happily picks one extreme
+  leg: `/szelveny 10` returned `1.34 × 7.32` before the cap. Since `tippmixRatio()` is only
+  calibrated to 6.0 and the model's ranking is inverted, a @7+ leg is a guess wearing a
+  price tag. `buildSlip` now searches under a soft @5.00 cap first and only lifts it if the
+  target is otherwise unreachable. Run `cap_check.js` for the before/after.
+  The cap **costs EV where it binds** (20x: 0.8601 → 0.7990) — that is the accepted trade,
+  not a regression. Do not "restore" the uncapped behaviour to win those points back.
 
 ### A trap that cost a debugging cycle
 
