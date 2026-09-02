@@ -58,7 +58,7 @@
       "id": "5717c0de-0004-4000-8000-000000000004",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
-      "typeVersion": 1.5,
+      "typeVersion": 1.2,
       "position": [
         0,
         300
