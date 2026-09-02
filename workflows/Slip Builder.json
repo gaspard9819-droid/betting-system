@@ -89,9 +89,16 @@
           "mode": "id",
           "value": "g6EjXi82TbW6VB91"
         },
+        "matchType": "anyCondition",
         "filters": {
-          "conditions": []
-        }
+          "conditions": [
+            {
+              "keyName": "created_at",
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": true
       },
       "id": "5717c0de-0008-4000-8000-000000000006",
       "name": "Get Slate",
