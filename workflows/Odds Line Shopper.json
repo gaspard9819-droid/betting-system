@@ -12,7 +12,10 @@
       "name": "Sticky Note",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-40, -420]
+      "position": [
+        -40,
+        -420
+      ]
     },
     {
       "parameters": {
@@ -25,7 +28,10 @@
       "name": "Sticky Note1",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [-40, -60]
+      "position": [
+        -40,
+        -60
+      ]
     },
     {
       "parameters": {
@@ -38,7 +44,10 @@
       "name": "Sticky Note2",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [400, -60]
+      "position": [
+        400,
+        -60
+      ]
     },
     {
       "parameters": {
@@ -51,7 +60,10 @@
       "name": "Sticky Note3",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
-      "position": [1060, -60]
+      "position": [
+        1060,
+        -60
+      ]
     },
     {
       "parameters": {},
@@ -59,7 +71,10 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 160]
+      "position": [
+        0,
+        160
+      ]
     },
     {
       "parameters": {
@@ -75,8 +90,11 @@
       "id": "5717c0de-0000-4000-8000-000000000011",
       "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.4,
-      "position": [0, 320]
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        320
+      ]
     },
     {
       "parameters": {
@@ -86,7 +104,10 @@
       "name": "League Config",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [220, 240]
+      "position": [
+        220,
+        240
+      ]
     },
     {
       "parameters": {
@@ -96,9 +117,18 @@
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
-            { "name": "regions", "value": "eu,uk" },
-            { "name": "markets", "value": "h2h" },
-            { "name": "oddsFormat", "value": "decimal" }
+            {
+              "name": "regions",
+              "value": "eu,uk"
+            },
+            {
+              "name": "markets",
+              "value": "h2h"
+            },
+            {
+              "name": "oddsFormat",
+              "value": "decimal"
+            }
           ]
         },
         "options": {
@@ -120,8 +150,11 @@
       "id": "5717c0de-0000-4000-8000-000000000013",
       "name": "Fetch Odds",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [220, 400],
+      "typeVersion": 4.4,
+      "position": [
+        220,
+        400
+      ],
       "onError": "continueErrorOutput",
       "retryOnFail": true,
       "maxTries": 2,
@@ -135,7 +168,10 @@
       "name": "Compare Prices",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 240]
+      "position": [
+        660,
+        240
+      ]
     },
     {
       "parameters": {
@@ -145,7 +181,10 @@
       "name": "Handle Fetch Error",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [660, 440]
+      "position": [
+        660,
+        440
+      ]
     },
     {
       "parameters": {
@@ -155,7 +194,10 @@
       "name": "Combine Branches",
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
-      "position": [880, 320]
+      "position": [
+        880,
+        320
+      ]
     },
     {
       "parameters": {
@@ -165,7 +207,10 @@
       "name": "Build Report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 320]
+      "position": [
+        1100,
+        320
+      ]
     },
     {
       "parameters": {
@@ -179,7 +224,10 @@
       "name": "Send Telegram",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1320, 320],
+      "position": [
+        1320,
+        320
+      ],
       "onError": "continueRegularOutput",
       "retryOnFail": true,
       "maxTries": 2,
@@ -188,31 +236,99 @@
   ],
   "connections": {
     "Manual Trigger": {
-      "main": [[{ "node": "League Config", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "League Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Schedule Trigger": {
-      "main": [[{ "node": "League Config", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "League Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "League Config": {
-      "main": [[{ "node": "Fetch Odds", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Odds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Odds": {
       "main": [
-        [{ "node": "Compare Prices", "type": "main", "index": 0 }],
-        [{ "node": "Handle Fetch Error", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Compare Prices",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Fetch Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Compare Prices": {
-      "main": [[{ "node": "Combine Branches", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Combine Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Handle Fetch Error": {
-      "main": [[{ "node": "Combine Branches", "type": "main", "index": 1 }]]
+      "main": [
+        [
+          {
+            "node": "Combine Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
     },
     "Combine Branches": {
-      "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build Report": {
-      "main": [[{ "node": "Send Telegram", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
