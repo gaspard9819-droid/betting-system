@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "# Betting Slate Builder\n\n## Napi pillanatkep: modell + odds + hirek -> bet_slate tabla\n\n### Ezt a tablat olvassa a Slip Builder a /szelveny parancsra.\n### Naponta EGYSZER fut, mert a The Odds API koltsege = piacok x regiok:\n### 3 piac x 1 regio x 5 liga = 15 kredit/futas, havi 450 az ingyenes 500-bol.\n\n*Beallitas: The Odds API kulcs (Query Auth, 'apiKey') a Fetch Odds node-on,\nAnthropic credential a News Model node-on, TELEGRAM_CHAT_ID env valtozo.*",
+        "content": "# Betting Slate Builder\n\n## Napi pillanatkep: modell + odds + hirek -> bet_slate tabla\n\n### Ezt a tablat olvassa a Slip Builder a /szelveny parancsra.\n### Naponta EGYSZER fut, mert a The Odds API koltsege = piacok x regiok:\n### 3 piac x 1 regio x 5 liga = 15 kredit/futas, havi 450 az ingyenes 500-bol.\n\n*Beallitas: The Odds API kulcs (Query Auth, 'apiKey') a Fetch Odds node-on,\nAnthropic credential a News Model node-on, Discord Bot credential a Send Discord node-on.*",
         "height": 320,
         "width": 1000,
         "color": 4
@@ -538,16 +538,26 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
-        "text": "={{ $json.message }}",
-        "additionalFields": {
-          "appendAttribution": false
-        }
+        "authentication": "botToken",
+        "resource": "message",
+        "operation": "send",
+        "guildId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
       },
       "id": "5717c0de-0003-4000-8000-000000000029",
-      "name": "Send Telegram",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "name": "Send Discord",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
       "position": [
         4400,
         340
@@ -812,7 +822,7 @@
       "main": [
         [
           {
-            "node": "Send Telegram",
+            "node": "Send Discord",
             "type": "main",
             "index": 0
           }
