@@ -1,0 +1,188 @@
+{
+  "name": "Slip Builder",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Slip Builder\n\n## /szelveny 10  ->  ~10x osszoddsu szelveny\n\n### A bet_slate tablabol dolgozik, amit a Betting Slate Builder tolt fel naponta.\n### Nem szamol ujra semmit — ezert masodpercek alatt valaszol.\n\n### A LEGKEVESEBB labbal eri el a celt, mert a margo labankent szorzodik:\n### 2 lab ~86%, 3 lab ~79%, 6 lab ~63% ertekmegtartas.\n\n*Ennek a workflow-nak AKTIVNAK kell lennie, hogy a Telegram parancs mukodjon.*",
+        "height": 320,
+        "width": 900,
+        "color": 4
+      },
+      "id": "5717c0de-0004-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Parancsok\n\n### /szelveny 10        ~10x osszodds\n### /szelveny 10 max3   legfeljebb 3 lab\n### /szelveny 10 min2   labankent min 2.00\n### /slate              mai kinalat\n### /help               sugo\n\n### Ha a TELEGRAM_CHAT_ID env valtozo be van allitva,\n### csak arrol a chatrol fogad parancsot.",
+        "height": 300,
+        "width": 480,
+        "color": 5
+      },
+      "id": "5717c0de-0004-4000-8000-000000000002",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Szures a szelvenybe\n\n### - ALACSONY bizalmu lab KIMARAD\n###   (ott a modell sokkal tobbet lat a piacnal — meres szerint\n###    az jellemzoen modellhiba, nem ertek)\n### - hir-vetozott lab KIMARAD\n### - egy meccsbol csak EGY lab (korrelacios vedelem)\n### - a megadott min odds alatti lab kimarad",
+        "height": 300,
+        "width": 560,
+        "color": 5
+      },
+      "id": "5717c0de-0004-4000-8000-000000000003",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        460,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "5717c0de-0004-4000-8000-000000000004",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-B / \"Parse Command\" — a Telegram uzenet ertelmezese.\n\nconst msg = $json.message || $json.edited_message || {};\nconst text = String(msg.text || '').trim();\nconst chatId = msg.chat ? msg.chat.id : null;\n\n// Biztonsag: ha a TELEGRAM_CHAT_ID be van allitva, csak arrol a chatrol\n// fogadunk parancsot. Enelkul barki, aki megtalalja a botot, hasznalhatna.\nconst allowed = $env.TELEGRAM_CHAT_ID;\nif (allowed && String(chatId) !== String(allowed).trim()) {\n  return [{ json: { command: 'ignore', chat_id: chatId, ignored: true } }];\n}\n\nconst out = { chat_id: chatId, raw: text };\n\nif (!text.startsWith('/')) {\n  return [{ json: { ...out, command: 'help' } }];\n}\n\nconst parts = text.slice(1).split(/\\s+/);\nconst cmd = parts[0].toLowerCase().split('@')[0];   // /parancs@botnev kezelese\n\nif (cmd === 'help' || cmd === 'start') {\n  return [{ json: { ...out, command: 'help' } }];\n}\nif (cmd === 'slate' || cmd === 'kinalat' || cmd === 'kinálat') {\n  return [{ json: { ...out, command: 'slate' } }];\n}\nconst SLIP_CMDS = ['szelveny', 'szelvény', 'slip'];\nif (!SLIP_CMDS.includes(cmd)) {\n  return [{ json: { ...out, error: `Ismeretlen parancs: /${cmd}` } }];\n}\n\n// /szelveny <cel> [max<N>] [min<odds>]\nconst targetRaw = parts[1];\nif (targetRaw === undefined) {\n  return [{ json: { ...out, error: 'Add meg a cel-osszoddsot, pl. /szelveny 10' } }];\n}\nconst target = Number(String(targetRaw).replace(',', '.'));\nif (!Number.isFinite(target) || target <= 1) {\n  return [{ json: { ...out, error: `Ervenytelen cel: \"${targetRaw}\". Szam kell, 1-nel nagyobb.` } }];\n}\nif (target > 10000) {\n  return [{ json: { ...out, error: 'A cel tul nagy. 10000x alatt maradj.' } }];\n}\n\nlet maxLegs = 4, minLegOdds = 1.30;\nfor (const p of parts.slice(2)) {\n  const mMax = /^max(\\d+)$/i.exec(p);\n  if (mMax) { maxLegs = Math.max(1, Math.min(8, Number(mMax[1]))); continue; }\n  const mMin = /^min([\\d.,]+)$/i.exec(p);\n  if (mMin) {\n    const v = Number(mMin[1].replace(',', '.'));\n    if (Number.isFinite(v) && v >= 1) minLegOdds = v;\n    continue;\n  }\n}\n\nreturn [{ json: { ...out, command: 'szelveny', target, maxLegs, minLegOdds } }];\n"
+      },
+      "id": "5717c0de-0004-4000-8000-000000000005",
+      "name": "Parse Command",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6EjXi82TbW6VB91"
+        },
+        "filters": {
+          "conditions": []
+        }
+      },
+      "id": "5717c0de-0004-4000-8000-000000000006",
+      "name": "Get Slate",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF-B / \"Build Response\" — parancs -> szelveny.\n// A szelvenyepito algoritmus lokalisan tesztelve lett, mielott ide kerult.\n\n// ---------- szelvenyepito ----------\nfunction buildSlip(pool, opts) {\n  const T = opts.target;\n  const maxLegs = opts.maxLegs || 4;\n  const minLegOdds = opts.minLegOdds || 1.30;\n  const tol = opts.tolerance || 0.12;\n  const POOL_CAP = opts.poolCap || 40;\n\n  let cand = pool.filter(l =>\n    l.news_flag !== 'veto' &&\n    l.confidence !== 'ALACSONY' &&\n    l.tippmix_odds >= minLegOdds &&\n    l.model_prob > 0\n  );\n  if (!cand.length) return { ok: false, reason: 'no_candidates' };\n\n  // Minoseg = modell-valoszinuseg + bizalmi bonusz. NEM a modell-piac elteres:\n  // meres szerint az elteresre szurni hibat szur, nem tudast.\n  const confBonus = c => (c === 'MAGAS' ? 0.06 : c === 'KOZEPES' ? 0.02 : 0);\n  cand.forEach(l => { l._q = l.model_prob + confBonus(l.confidence) - (l.news_flag === 'warn' ? 0.03 : 0); });\n  cand.sort((a, b) => b._q - a._q);\n\n  // Retegzett vagas odds-savonkent. Tiszta minoseg szerinti vagas kiszorna az\n  // osszes magas oddsu labat, es a nagy cel-oddsok elerhetetlenne valnanak.\n  const BANDS = [[1.0, 1.6], [1.6, 2.2], [2.2, 3.2], [3.2, 5.0], [5.0, Infinity]];\n  const perBand = Math.max(4, Math.ceil(POOL_CAP / BANDS.length));\n  const picked = [];\n  for (const b of BANDS) {\n    picked.push(...cand.filter(l => l.tippmix_odds >= b[0] && l.tippmix_odds < b[1]).slice(0, perBand));\n  }\n  cand = picked.sort((a, b) => b._q - a._q);\n  if (!cand.length) return { ok: false, reason: 'no_candidates' };\n\n  const maxOdds = Math.max(...cand.map(l => l.tippmix_odds));\n  const nMin = Math.max(1, Math.ceil(Math.log(T) / Math.log(maxOdds)));\n  if (nMin > maxLegs) return { ok: false, reason: 'target_too_high', nMin, maxLegs, maxOdds };\n\n  const lo = T * (1 - tol), hi = T * (1 + tol);\n  let best = null;\n\n  // n novekvo sorrendben. Az ELSO n, amin van megoldas, nyer — mert a margo\n  // labankent szorzodik: 2 lab ~86%-ot tart meg, 3 lab ~79%-ot, 6 lab ~63%-ot.\n  for (let n = nMin; n <= maxLegs; n++) {\n    const found = [];\n    const dfs = (start, chosen, prod, used) => {\n      if (found.length >= 400) return;\n      if (chosen.length === n) {\n        if (prod >= lo && prod <= hi) found.push({ legs: chosen.slice(), prod });\n        return;\n      }\n      const remaining = n - chosen.length;\n      for (let i = start; i < cand.length; i++) {\n        if (cand.length - i < remaining) break;\n        const l = cand[i];\n        if (used.has(l.event_id)) continue;        // egy meccs = egy lab\n        const p = prod * l.tippmix_odds;\n        if (p * Math.pow(maxOdds, remaining - 1) < lo) continue;\n        if (p > hi) continue;\n        used.add(l.event_id); chosen.push(l);\n        dfs(i + 1, chosen, p, used);\n        chosen.pop(); used.delete(l.event_id);\n      }\n    };\n    dfs(0, [], 1, new Set());\n    if (found.length) {\n      for (const f of found) {\n        const jointP = f.legs.reduce((a, l) => a * l.model_prob, 1);\n        const hiCount = f.legs.filter(l => l.confidence === 'MAGAS').length;\n        const drift = Math.abs(f.prod - T) / T;\n        f.score = jointP * (1 + 0.05 * hiCount) * (1 - drift);\n        f.jointP = jointP;\n      }\n      found.sort((a, b) => b.score - a.score);\n      best = found[0]; best.n = n;\n      break;\n    }\n  }\n\n  if (!best) {\n    let closest = null;\n    for (let n = nMin; n <= maxLegs; n++) {\n      const greedy = []; const used = new Set(); let prod = 1;\n      for (const l of cand) {\n        if (greedy.length >= n) break;\n        if (used.has(l.event_id)) continue;\n        if (prod * l.tippmix_odds > hi && greedy.length) continue;\n        greedy.push(l); used.add(l.event_id); prod *= l.tippmix_odds;\n      }\n      if (greedy.length === n) {\n        const d = Math.abs(prod - T);\n        if (!closest || d < closest.d) {\n          closest = { legs: greedy, prod, n, d, jointP: greedy.reduce((a, l) => a * l.model_prob, 1) };\n        }\n      }\n    }\n    if (!closest) return { ok: false, reason: 'no_combination' };\n    closest.ok = true; closest.approximate = true;\n    return closest;\n  }\n  best.ok = true; best.approximate = false;\n  return best;\n}\n\n// ---------- bemenet ----------\nconst cmd = (() => { try { return $('Parse Command').first().json; } catch (e) { return {}; } })();\nconst rows = $input.all().map(i => i.json).filter(r => r && r.leg_id);\n\nconst fmt = iso => {\n  try {\n    return new Date(iso).toLocaleString('hu-HU', { timeZone: 'Europe/Budapest',\n      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });\n  } catch (e) { return String(iso); }\n};\nconst num = x => Number(x);\n\n// csak a jovobeli meccsek\nconst now = Date.now();\nconst slate = rows.filter(r => {\n  const t = new Date(r.kickoff).getTime();\n  return Number.isFinite(t) && t > now + 10 * 60000;   // legalabb 10 perc mulva\n}).map(r => ({\n  ...r,\n  model_prob: num(r.model_prob), market_prob: num(r.market_prob),\n  tippmix_odds: num(r.tippmix_odds), market_avg_odds: num(r.market_avg_odds),\n}));\n\nconst HELP = [\n  '🎟 SZELVENYEPITO',\n  '',\n  '/szelveny 10        ~10x osszodds',\n  '/szelveny 10 max3   legfeljebb 3 lab',\n  '/szelveny 10 min2   labankent min 2.00 odds',\n  '/slate              mai kinalat',\n  '/help               ez a szoveg',\n  '',\n  'A rendszer a LEGKEVESEBB labbal eri el a celt, mert a',\n  'margo labankent szorzodik: 2 labnal a fair ertek ~86%-a',\n  'marad meg, 6 labnal mar csak ~63%-a.',\n].join('\\n');\n\nlet msg;\n\nif (cmd.error) {\n  msg = '❓ ' + cmd.error + '\\n\\n' + HELP;\n} else if (cmd.command === 'help') {\n  msg = HELP;\n} else if (!slate.length) {\n  msg = '📭 Ures a slate.\\n\\n'\n      + (rows.length ? `${rows.length} sor van a tablaban, de mind mult ideju.\\n` : 'Nincs sor a tablaban.\\n')\n      + 'A Slate Builder naponta 08:00-kor frissit. Futtasd le kezzel, ha most kell.';\n} else if (cmd.command === 'slate') {\n  const byMatch = {};\n  slate.forEach(l => { (byMatch[l.match_name] = byMatch[l.match_name] || []).push(l); });\n  const matches = Object.entries(byMatch)\n    .sort((a, b) => new Date(a[1][0].kickoff) - new Date(b[1][0].kickoff))\n    .slice(0, 15);\n  const lines = matches.map(([m, ls]) => {\n    const usable = ls.filter(l => l.confidence !== 'ALACSONY' && l.news_flag !== 'veto');\n    const odds = usable.map(l => l.tippmix_odds).sort((a, b) => a - b);\n    return `${m}\\n   ${fmt(ls[0].kickoff)} · ${ls[0].league}\\n   ${usable.length}/${ls.length} hasznalhato lab`\n         + (odds.length ? `, odds ${odds[0].toFixed(2)}–${odds[odds.length - 1].toFixed(2)}` : '');\n  });\n  const usableTotal = slate.filter(l => l.confidence !== 'ALACSONY' && l.news_flag !== 'veto').length;\n  const vetoed = slate.filter(l => l.news_flag === 'veto').length;\n  msg = `📋 MAI KINALAT — ${matches.length} meccs\\n\\n${lines.join('\\n\\n')}\\n\\n──────────\\n`\n      + `${usableTotal} hasznalhato lab ${slate.length}-bol`\n      + (vetoed ? `\\n${vetoed} lab kizarva hir miatt` : '');\n} else {\n  // /szelveny\n  const T = cmd.target;\n  const r = buildSlip(slate, {\n    target: T,\n    maxLegs: cmd.maxLegs || 4,\n    minLegOdds: cmd.minLegOdds || 1.30,\n  });\n\n  if (!r.ok) {\n    const usable = slate.filter(l => l.confidence !== 'ALACSONY' && l.news_flag !== 'veto');\n    if (r.reason === 'target_too_high') {\n      msg = `⚠️ ${T}x nem erheto el ${r.maxLegs} labbal.\\n\\n`\n          + `A legmagasabb elerheto odds most ${r.maxOdds.toFixed(2)}, ehhez `\n          + `legalabb ${r.nMin} lab kellene.\\n\\n`\n          + `Probald: /szelveny ${T} max${Math.min(8, r.nMin)}\\n`\n          + `De vedd figyelembe: ${r.nMin} labnal a fair ertek kb. `\n          + `${(100 / Math.pow(1.08, r.nMin)).toFixed(0)}%-a marad meg.`;\n    } else if (r.reason === 'no_candidates') {\n      msg = `📭 Nincs hasznalhato lab.\\n\\n${slate.length} lab van a slate-en, de egyik sem felelt meg `\n          + `a szuronek (min ${cmd.minLegOdds || 1.30} odds, nem ALACSONY bizalom, nincs hir-veto).\\n\\n`\n          + `${usable.length} lab lenne hasznalhato alacsonyabb odds-kuszobbel.`;\n    } else {\n      msg = `⚠️ Nem talaltam kombinaciot ${T}x celra.\\n\\nProbalj mas celt vagy tobb labat: /szelveny ${T} max6`;\n    }\n  } else {\n    const prod = r.legs.reduce((a, l) => a * l.tippmix_odds, 1);\n    const jointP = r.legs.reduce((a, l) => a * l.model_prob, 1);\n    const icon = { MAGAS: '🟢', KOZEPES: '🟡', ALACSONY: '🔴' };\n    const blocks = r.legs.map((l, i) =>\n      `${i + 1}. ${l.match_name}\\n`\n      + `   ${fmt(l.kickoff)} · ${l.league}\\n`\n      + `   ${l.label} @ ${l.tippmix_odds.toFixed(2)}\\n`\n      + `   modell ${(l.model_prob * 100).toFixed(0)}% · piac ${(l.market_prob * 100).toFixed(0)}% · `\n      + `${icon[l.confidence] || ''} ${l.confidence === 'MAGAS' ? 'egyetert' : 'reszben egyetert'}`\n      + (l.news_flag === 'warn' && l.news_note ? `\\n   ⚠️ ${l.news_note}` : ''));\n\n    const keep = 100 / Math.pow(1.08, r.n);\n    msg = `🎟 SZELVENY — cel ${T}x\\n\\n${blocks.join('\\n\\n')}\\n\\n──────────\\n`\n        + `Osszodds (becsult): ${prod.toFixed(2)}x`\n        + (r.approximate ? '  ⚠️ a cel pontosan nem volt elerheto' : '') + '\\n'\n        + `Bejovesi esely: ~${(jointP * 100).toFixed(1)}%  (kb. minden ${Math.round(1 / jointP)}. szelveny)\\n`\n        + `${r.n} lab — kevesebbel a cel nem erheto el\\n\\n`\n        + `A Tippmixpro oddsok BECSULTEK (piaci atlag −4,5%).\\n`\n        + `Ellenorizd a valos oddsokat leadas elott.\\n`\n        + `Szelvenynel a margo labankent szorzodik: ${r.n} labnal\\n`\n        + `a fair ertek kb. ${keep.toFixed(0)}%-a marad meg.`;\n  }\n}\n\nreturn [{ json: { message: msg, chat_id: cmd.chat_id, slate_rows: rows.length, future_rows: slate.length } }];\n"
+      },
+      "id": "5717c0de-0004-4000-8000-000000000007",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5717c0de-0004-4000-8000-000000000008",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        880,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Command": {
+      "main": [
+        [
+          {
+            "node": "Get Slate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Slate": {
+      "main": [
+        [
+          {
+            "node": "Build Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Response": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

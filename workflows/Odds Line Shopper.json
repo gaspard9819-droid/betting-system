@@ -1,0 +1,221 @@
+{
+  "name": "Odds Line Shopper",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Odds Line Shopper\n\n## Nem josol. Arat hasonlit.\n\n### A rendszer nem mondja meg, mire fogadj — azt mondja meg, HOL fogadd, es mikor NE.\n### Mert a sajat backteszt (7159 meccs) szerint: modell alapu tippeles -16% ROI, ar-osszehasonlitas +3.79 szazalekpont. Az egyik veszit, a masik nyer.\n\n*Beallitas: The Odds API kulcs a 'The Odds API' credentialbe (Query Auth, parameter neve: apiKey). Telegram bot token + chat id a Telegram credentialbe.*",
+        "height": 320,
+        "width": 900,
+        "color": 4
+      },
+      "id": "5717c0de-0000-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-40, -420]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Odds beolvasas\n\n### Minden konfiguralt ligara lekeri az osszes konyv oddsat, EU regio.\n### A batching (3-as csomag, 1 mp szunet) miatt a szabad kvota nem fogy el hirtelen.",
+        "height": 260,
+        "width": 420,
+        "color": 5
+      },
+      "id": "5717c0de-0000-4000-8000-000000000002",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-40, -60]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Ar-elemzes\n\n### Kimenetelenkent osszehasonlitja az osszes konyvet:\n### hol a legjobb ar, mennyivel jobb az atlagnal, es a te konyved mennyire rossz.\n### Itt nincs jóslas, csak osszehasonlitas.",
+        "height": 260,
+        "width": 640,
+        "color": 5
+      },
+      "id": "5717c0de-0000-4000-8000-000000000003",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [400, -60]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Riasztas\n\n### Csak akkor szol, ha a res erdemi (alapertelmezes 2%+).\n### A Telegram uzenet megmondja, melyik konyvnel mennyivel jarsz jobban.",
+        "height": 260,
+        "width": 420,
+        "color": 5
+      },
+      "id": "5717c0de-0000-4000-8000-000000000004",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1060, -60]
+    },
+    {
+      "parameters": {},
+      "id": "5717c0de-0000-4000-8000-000000000010",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 160]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8,14,20 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5717c0de-0000-4000-8000-000000000011",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [0, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Melyik ligakat figyeljuk, es mi a sajat konyvunk.\n//\n// A 'myBook' az a konyv, ahol alapbol fogadnal. A rendszer ehhez kepest\n// mutatja meg, mennyit veszitesz azzal, hogy ott fogadsz.\n// The Odds API bookmaker kulcsok: pinnacle, bet365, unibet_eu, betano,\n// williamhill, marathonbet, onexbet, betfair_ex_eu, nordicbet, betsson...\n//\n// FONTOS: a tippmixpro nincs a The Odds API-ban (magyar allami monopol konyv).\n// Ezert a 'myBook' egy hozza hasonlo, szinten magas margoju konyv - proxykent.\n// Ha van Bet365 vagy Unibet fiokod, allitsd arra, es a szam pontos lesz.\n\nconst LEAGUES = [\n  { key: 'soccer_epl',            name: 'Premier League' },\n  { key: 'soccer_spain_la_liga',  name: 'La Liga' },\n  { key: 'soccer_germany_bundesliga', name: 'Bundesliga' },\n  { key: 'soccer_italy_serie_a',  name: 'Serie A' },\n  { key: 'soccer_france_ligue_one', name: 'Ligue 1' },\n];\n\nconst CONFIG = {\n  myBook: 'bet365',        // a te alapertelmezett konyved\n  minGapPct: 2.0,          // ennyi % arkulonbseg felett szol\n  minOdds: 1.5,            // ez alatt nem erdekes\n  maxOdds: 6.0,            // e felett tul nagy a variancia\n  maxHoursAhead: 96,       // ennyi oran belul kezdodo meccsek\n};\n\nreturn LEAGUES.map(l => ({ json: { ...l, config: CONFIG } }));"
+      },
+      "id": "5717c0de-0000-4000-8000-000000000012",
+      "name": "League Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.the-odds-api.com/v4/sports/' + $json.key + '/odds' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "regions", "value": "eu,uk" },
+            { "name": "markets", "value": "h2h" },
+            { "name": "oddsFormat", "value": "decimal" }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 3,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5717c0de-0000-4000-8000-000000000013",
+      "name": "Fetch Odds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [220, 400],
+      "onError": "continueErrorOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ar-osszehasonlitas. Ez a rendszer lenyege - es itt nincs semmilyen jóslas.\n//\n// Minden meccs minden kimenetelere:\n//   - melyik konyv adja a legjobb arat\n//   - mennyivel jobb ez az atlagnal (ez a te nyeresegеd, ha ott fogadsz)\n//   - mennyivel rosszabb a sajat konyved (ez amit most veszitesz)\n//   - mennyi a piac margoja (ha tul magas, az egesz meccs kerulendo)\n\nconst out = [];\nconst errors = [];\nlet totalEvents = 0;\n\nfor (const item of $input.all()) {\n  const j = item.json;\n\n  // A fullResponse miatt a valasz {statusCode, body, headers} alakban jon.\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j;\n  const league = j.name || ($('League Config').first().json.name) || 'ismeretlen';\n  const cfg = ($('League Config').first().json.config) || {};\n\n  if (status && status !== 200) {\n    errors.push(`${league}: HTTP ${status} - ${typeof body === 'object' ? JSON.stringify(body).slice(0,120) : String(body).slice(0,120)}`);\n    continue;\n  }\n  if (!Array.isArray(body)) {\n    errors.push(`${league}: varatlan valasz forma`);\n    continue;\n  }\n\n  for (const ev of body) {\n    totalEvents++;\n    if (!ev.bookmakers || ev.bookmakers.length < 3) continue;\n\n    const kickoff = new Date(ev.commence_time);\n    const hoursAhead = (kickoff - new Date()) / 3600000;\n    if (hoursAhead < 0 || hoursAhead > (cfg.maxHoursAhead || 96)) continue;\n\n    // kimenetel -> [{book, price}]\n    const byOutcome = {};\n    for (const bk of ev.bookmakers) {\n      const mk = (bk.markets || []).find(m => m.key === 'h2h');\n      if (!mk || !mk.outcomes) continue;\n      for (const oc of mk.outcomes) {\n        const price = Number(oc.price);\n        if (!Number.isFinite(price) || price <= 1) continue;\n        (byOutcome[oc.name] = byOutcome[oc.name] || []).push({ book: bk.key, title: bk.title, price });\n      }\n    }\n\n    // piaci margo: a legjobb arakbol szamolva (ez a valos elerheto piac)\n    const names = Object.keys(byOutcome);\n    if (names.length < 2) continue;\n    let bestSum = 0;\n    for (const n of names) bestSum += 1 / Math.max(...byOutcome[n].map(o => o.price));\n    const marketMarginPct = (bestSum - 1) * 100;\n\n    for (const name of names) {\n      const quotes = byOutcome[name];\n      if (quotes.length < 3) continue;\n\n      const prices = quotes.map(q => q.price);\n      const best = quotes.reduce((a, b) => (b.price > a.price ? b : a));\n      const avg = prices.reduce((a, b) => a + b, 0) / prices.length;\n      const mine = quotes.find(q => q.book === cfg.myBook);\n\n      if (best.price < (cfg.minOdds || 1.5) || best.price > (cfg.maxOdds || 6)) continue;\n\n      const gapVsAvgPct = (best.price / avg - 1) * 100;\n      const gapVsMinePct = mine ? (best.price / mine.price - 1) * 100 : null;\n\n      out.push({\n        json: {\n          league,\n          event_id: ev.id,\n          match_name: `${ev.home_team} vs ${ev.away_team}`,\n          kickoff: ev.commence_time,\n          hours_ahead: Math.round(hoursAhead * 10) / 10,\n          selection: name,\n          best_odds: Math.round(best.price * 1000) / 1000,\n          best_book: best.title || best.book,\n          avg_odds: Math.round(avg * 1000) / 1000,\n          my_odds: mine ? mine.price : null,\n          my_book: cfg.myBook,\n          gap_vs_avg_pct: Math.round(gapVsAvgPct * 100) / 100,\n          gap_vs_mine_pct: gapVsMinePct === null ? null : Math.round(gapVsMinePct * 100) / 100,\n          market_margin_pct: Math.round(marketMarginPct * 100) / 100,\n          book_count: quotes.length,\n          // a dontesi mezo: ha van sajat konyv adat, ahhoz merunk, kulonben az atlaghoz\n          gap_pct: Math.round((gapVsMinePct === null ? gapVsAvgPct : gapVsMinePct) * 100) / 100,\n        }\n      });\n    }\n  }\n}\n\nif (out.length === 0) {\n  return [{ json: { _summary: true, events: totalEvents, opportunities: 0, errors } }];\n}\nout.push({ json: { _summary: true, events: totalEvents, opportunities: out.length, errors } });\nreturn out;"
+      },
+      "id": "5717c0de-0000-4000-8000-000000000014",
+      "name": "Compare Prices",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Hibaag: a HTTP node hibas kimenete ide fut. Nem nyeljuk el csendben.\nconst msgs = $input.all().map(i => {\n  const e = i.json.error || i.json;\n  return typeof e === 'object' ? JSON.stringify(e).slice(0, 200) : String(e).slice(0, 200);\n});\nreturn [{ json: { _summary: true, events: 0, opportunities: 0, errors: msgs.length ? msgs : ['ismeretlen HTTP hiba'] } }];"
+      },
+      "id": "5717c0de-0000-4000-8000-000000000015",
+      "name": "Handle Fetch Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 440]
+    },
+    {
+      "parameters": {
+        "numberInputs": 2
+      },
+      "id": "5717c0de-0000-4000-8000-000000000016",
+      "name": "Combine Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [880, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Szures + rangsorolas + uzenet osszeallitas.\n// Egyetlen Telegram uzenet megy ki, nem fogadasonkent egy.\n\nconst all = $input.all().map(i => i.json);\nconst summaries = all.filter(x => x._summary);\nconst rows = all.filter(x => !x._summary);\n\nconst cfg = (() => { try { return $('League Config').first().json.config; } catch (e) { return {}; } })();\nconst minGap = cfg.minGapPct !== undefined ? cfg.minGapPct : 2.0;\nconst myBook = cfg.myBook || 'bet365';\n\nconst events = summaries.reduce((a, s) => a + (s.events || 0), 0);\nconst errors = summaries.flatMap(s => s.errors || []);\n\n// csak az erdemi resek, legjobb elol\nconst hits = rows\n  .filter(r => r.gap_pct >= minGap)\n  .sort((a, b) => b.gap_pct - a.gap_pct)\n  .slice(0, 12);\n\nconst fmtTime = iso => {\n  try {\n    return new Date(iso).toLocaleString('hu-HU', {\n      timeZone: 'Europe/Budapest', month: 'numeric', day: 'numeric',\n      hour: '2-digit', minute: '2-digit'\n    });\n  } catch (e) { return iso; }\n};\n\nlet msg;\nif (hits.length === 0) {\n  msg = `📊 Ar-ellenorzes kesz\\n\\n${events} meccs atnezve, nincs ${minGap}%-nal nagyobb arkulonbseg.\\n\\nEz normalis — ha most fogadnal, a sajat konyved ara kozel van a piachoz.`;\n} else {\n  const lines = hits.map(h => {\n    const mine = h.my_odds\n      ? `${myBook}: ${h.my_odds.toFixed(2)}`\n      : `piaci atlag: ${h.avg_odds.toFixed(2)}`;\n    const warn = h.market_margin_pct > 8 ? '  ⚠️ magas margo' : '';\n    return `${h.match_name}\\n  ${fmtTime(h.kickoff)} · ${h.league}\\n  ${h.selection}\\n  ✅ ${h.best_book}: ${h.best_odds.toFixed(2)}  (${mine})\\n  → +${h.gap_pct.toFixed(1)}% jobb ar${warn}`;\n  });\n\n  const avgGap = hits.reduce((a, h) => a + h.gap_pct, 0) / hits.length;\n  msg = `💰 ARKULONBSEGEK\\n\\n${lines.join('\\n\\n')}\\n\\n──────────\\n${hits.length} lehetoseg, atlag +${avgGap.toFixed(1)}%\\n${events} meccs atnezve\\n\\nEz nem tipp. Ha amugy is fogadnal ezekre, itt jobb aron teheted.`;\n}\n\nif (errors.length) {\n  msg += `\\n\\n⚠️ Hibak:\\n${errors.slice(0, 3).join('\\n')}`;\n}\n\nreturn [{ json: { message: msg, hit_count: hits.length, events_checked: events, error_count: errors.length } }];"
+      },
+      "id": "5717c0de-0000-4000-8000-000000000017",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 320]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5717c0de-0000-4000-8000-000000000018",
+      "name": "Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1320, 320],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "League Config", "type": "main", "index": 0 }]]
+    },
+    "Schedule Trigger": {
+      "main": [[{ "node": "League Config", "type": "main", "index": 0 }]]
+    },
+    "League Config": {
+      "main": [[{ "node": "Fetch Odds", "type": "main", "index": 0 }]]
+    },
+    "Fetch Odds": {
+      "main": [
+        [{ "node": "Compare Prices", "type": "main", "index": 0 }],
+        [{ "node": "Handle Fetch Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Compare Prices": {
+      "main": [[{ "node": "Combine Branches", "type": "main", "index": 0 }]]
+    },
+    "Handle Fetch Error": {
+      "main": [[{ "node": "Combine Branches", "type": "main", "index": 1 }]]
+    },
+    "Combine Branches": {
+      "main": [[{ "node": "Build Report", "type": "main", "index": 0 }]]
+    },
+    "Build Report": {
+      "main": [[{ "node": "Send Telegram", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

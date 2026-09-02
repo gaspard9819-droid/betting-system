@@ -1,0 +1,826 @@
+{
+  "name": "Betting Slate Builder",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Betting Slate Builder\n\n## Napi pillanatkep: modell + odds + hirek -> bet_slate tabla\n\n### Ezt a tablat olvassa a Slip Builder a /szelveny parancsra.\n### Naponta EGYSZER fut, mert a The Odds API koltsege = piacok x regiok:\n### 3 piac x 1 regio x 5 liga = 15 kredit/futas, havi 450 az ingyenes 500-bol.\n\n*Beallitas: The Odds API kulcs (Query Auth, 'apiKey') a Fetch Odds node-on,\nAnthropic credential a News Model node-on, TELEGRAM_CHAT_ID env valtozo.*",
+        "height": 320,
+        "width": 1000,
+        "color": 4
+      },
+      "id": "5717c0de-0003-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -500
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Modell\n\n### Ket szezon eredmenye 5 ligara a\n### football-data.co.uk-rol (ingyenes,\n### kulcs nelkul), Dixon-Coles erossegek.\n### xG-t is hasznal, ahol van.\n### 1849 meccsen tesztelve.",
+        "height": 280,
+        "width": 420,
+        "color": 5
+      },
+      "id": "5717c0de-0003-4000-8000-000000000002",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        380,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Hirek\n\n### BBC + Guardian foci RSS, kulcs nelkul.\n### 147 cikk, ~40 illeszkedik a slate csapataira.",
+        "height": 200,
+        "width": 500,
+        "color": 5
+      },
+      "id": "5717c0de-0003-4000-8000-000000000003",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Lab-kepzes\n\n### MINDEN kimenetel kulon lab: 1X2 (3) + O/U 2.5 (2) + BTTS (2).\n### A Tippmixpro odds BECSULT: piaci atlag - 4.5%.\n### A bizalom a modell es a piac EGYETERTESEBOL jon, nem az elteresebol —\n### meres szerint a nagy elteres jellemzoen modellhiba.",
+        "height": 280,
+        "width": 700,
+        "color": 5
+      },
+      "id": "5717c0de-0003-4000-8000-000000000004",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Hir-szures\n\n### A hir NEM modositja a valoszinuseget — nincs ra validalt meresunk,\n### es egy kitalalt szorzo elrontana a kalibraciot, ami a modell\n### egyetlen bizonyitott erenye.\n### Ehelyett KIZAR (severity>=2) vagy megjelol (severity 1).\n### Csak arra a labra hat, amelyik az erintett csapat MELLETT szol.",
+        "height": 300,
+        "width": 780,
+        "color": 5
+      },
+      "id": "5717c0de-0003-4000-8000-000000000005",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2600,
+        -140
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5717c0de-0003-4000-8000-000000000006",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000007",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Beallitasok es a letoltendo szezonok.\n//\n// A szezonkod YYZZ: a 2026/27-es szezon '2627'. Ket szezont toltunk be,\n// mert a folyo szezon elejen meg alig van meccs (a modell kulonben\n// 3 meccsbol probalna csapaterosseget becsulni).\n\nconst NOW = new Date();\nconst y = NOW.getUTCFullYear(), mo = NOW.getUTCMonth() + 1;\n// a szezon augusztusban indul: januar-julius kozott meg az elozo evi szezonban vagyunk\nconst startYear = mo >= 8 ? y : y - 1;\nconst sc = yr => String(yr % 100).padStart(2, '0') + String((yr + 1) % 100).padStart(2, '0');\nconst SEASONS = [sc(startYear), sc(startYear - 1)];\n\nconst LEAGUES = [\n  { code: 'E0',  api: 'soccer_epl',                 name: 'Premier League' },\n  { code: 'SP1', api: 'soccer_spain_la_liga',       name: 'La Liga' },\n  { code: 'D1',  api: 'soccer_germany_bundesliga',  name: 'Bundesliga' },\n  { code: 'I1',  api: 'soccer_italy_serie_a',       name: 'Serie A' },\n  { code: 'F1',  api: 'soccer_france_ligue_one',    name: 'Ligue 1' },\n];\n\nconst CONFIG = {\n  minOdds: 1.30,          // ez alatt nem kerul labkent a slate-re\n  maxOdds: 15.0,\n  maxHoursAhead: 96,      // ennyi oran belul kezdodo meccsek\n  // A Tippmixpro nincs a The Odds API-ban (magyar allami monopol konyv), ezert\n  // a piaci atlagbol becsuljuk. Meres: egy atlagos konyv 3.15%-kal kevesebbet\n  // fizet a Pinnacle-nel, egy monopol konyv jellemzoen ennel is tobbet vag.\n  // Par valos Tippmixpro odds osszevetese utan pontositsd ezt a szamot.\n  tippmixHaircut: 0.045,\n};\n\nconst out = [];\nfor (const lg of LEAGUES) {\n  for (const s of SEASONS) {\n    out.push({ json: {\n      url: `https://www.football-data.co.uk/mmz4281/${s}/${lg.code}.csv`,\n      league: lg.code, api: lg.api, league_name: lg.name, season: s,\n      leagues: LEAGUES, config: CONFIG,\n    }});\n  }\n}\nreturn out;"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000008",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 25000,
+          "batching": {
+            "batch": {
+              "batchSize": 3,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000009",
+      "name": "Fetch History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        440,
+        340
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// CSV feldolgozas + Dixon-Coles csapaterossegek.\n// Ez a kod lokalisan tesztelve lett 1849 meccsen mielott ide kerult.\n\nconst XI = 0.0065;      // idobeli sulyozas: ~107 napos felezes\nconst SHRINK_K = 12;    // ennyi sulyozott meccsnel 50% a sajat adat\nconst XG_BLEND = 0.5;   // xG es valos gol keverese\nconst PRIOR_ATT = 0.92; // ujoncok atlag alatt teljesitenek\nconst PRIOR_DEF = 1.08;\n\nfunction parseCsv(raw, league) {\n  const text = String(raw).replace(/^\\uFEFF/, '');\n  const lines = text.split(/\\r?\\n/).filter(l => l.trim().length > 0);\n  if (lines.length < 2) return [];\n  // fejlecnev szerinti indexeles: az oszlopsorrend szezononkent valtozik\n  const head = lines[0].split(',').map(h => h.trim());\n  const col = {};\n  head.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });\n  for (const n of ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG']) {\n    if (col[n] === undefined) return [];\n  }\n  const hasXg = col['HxG'] !== undefined && col['AxG'] !== undefined;\n  const out = [];\n  for (let i = 1; i < lines.length; i++) {\n    const f = lines[i].split(',');\n    const home = (f[col['HomeTeam']] || '').trim();\n    const away = (f[col['AwayTeam']] || '').trim();\n    const fthg = f[col['FTHG']], ftag = f[col['FTAG']];\n    if (!home || !away || fthg === undefined || fthg === '' || ftag === '') continue;\n    const hg = Number(fthg), ag = Number(ftag);\n    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;\n    // dd/mm/yyyy — NEM ISO, kezzel kell bontani\n    const m = (f[col['Date']] || '').trim().match(/^(\\d{2})\\/(\\d{2})\\/(\\d{2}|\\d{4})$/);\n    if (!m) continue;\n    const yr = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);\n    const date = new Date(Date.UTC(yr, Number(m[2]) - 1, Number(m[1])));\n    if (isNaN(date.getTime())) continue;\n    const row = { league, date: date.toISOString(), home, away, hg, ag, hxg: null, axg: null };\n    if (hasXg) {\n      const hx = Number(f[col['HxG']]), ax = Number(f[col['AxG']]);\n      if (Number.isFinite(hx) && Number.isFinite(ax)) { row.hxg = hx; row.axg = ax; }\n    }\n    out.push(row);\n  }\n  return out;\n}\n\n// --- osszes CSV beolvasasa ---\nlet matches = [];\nconst fetchErrors = [];\nlet config = null, leagues = null;\n\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (!config && j.config) { config = j.config; leagues = j.leagues; }\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j.data;\n  if (status && status !== 200) {\n    fetchErrors.push(`${j.league || '?'} ${j.season || ''}: HTTP ${status}`);\n    continue;\n  }\n  if (typeof body !== 'string' || body.length < 100) {\n    fetchErrors.push(`${j.league || '?'} ${j.season || ''}: ures valasz`);\n    continue;\n  }\n  const rows = parseCsv(body, j.league);\n  if (!rows.length) fetchErrors.push(`${j.league} ${j.season}: 0 meccs`);\n  matches = matches.concat(rows);\n}\n\nif (!config) { config = {}; leagues = []; }\n\n// --- Dixon-Coles erossegek ---\nconst now = new Date();\nconst byLeague = {};\nfor (const m of matches) (byLeague[m.league] = byLeague[m.league] || []).push(m);\n\nconst ratings = {};\nconst leagueMeta = {};\n\nfor (const [league, rows] of Object.entries(byLeague)) {\n  const enriched = rows.map(m => {\n    const days = Math.max(0, (now - new Date(m.date)) / 86400000);\n    const w = Math.exp(-XI * days);\n    let hVal = m.hg, aVal = m.ag;\n    if (m.hxg !== null && m.axg !== null) {\n      hVal = XG_BLEND * m.hxg + (1 - XG_BLEND) * m.hg;\n      aVal = XG_BLEND * m.axg + (1 - XG_BLEND) * m.ag;\n    }\n    return { ...m, w, hVal, aVal };\n  }).filter(m => m.w > 1e-6);\n  if (!enriched.length) continue;\n\n  let sw = 0, shg = 0, sag = 0;\n  for (const m of enriched) { sw += m.w; shg += m.w * m.hVal; sag += m.w * m.aVal; }\n  const avgHome = shg / sw, avgAway = sag / sw;\n  const leagueAvg = (avgHome + avgAway) / 2;\n  const homeAdv = avgAway > 0 ? avgHome / avgAway : 1.3;\n  leagueMeta[league] = { leagueAvg, homeAdv, matches: enriched.length };\n\n  const t = {};\n  const get = n => (t[n] = t[n] || { sf: 0, sa: 0, w: 0, games: 0 });\n  for (const m of enriched) {\n    const H = get(m.home), A = get(m.away);\n    H.sf += m.w * (m.hVal / homeAdv); H.sa += m.w * m.aVal; H.w += m.w; H.games++;\n    A.sf += m.w * m.aVal; A.sa += m.w * (m.hVal / homeAdv); A.w += m.w; A.games++;\n  }\n  for (const [team, s] of Object.entries(t)) {\n    const k = s.w / (s.w + SHRINK_K);\n    ratings[league + '|' + team] = {\n      team, league,\n      attack: k * ((s.sf / s.w) / leagueAvg) + (1 - k) * PRIOR_ATT,\n      defence: k * ((s.sa / s.w) / leagueAvg) + (1 - k) * PRIOR_DEF,\n      matches: s.games,\n    };\n  }\n}\n\nreturn [{ json: {\n  ratings, leagueMeta, config, leagues,\n  total_matches: matches.length,\n  fetch_errors: fetchErrors,\n  teams_rated: Object.keys(ratings).length,\n}}];"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000010",
+      "name": "Build Model",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "table",
+        "operation": "clear",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6EjXi82TbW6VB91"
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000011",
+      "name": "Clear Slate",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        340
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ingyenes foci RSS-ek, kulcs nelkul. Ellenorizve: BBC 87 cikk, Guardian 60.\n// A modellt tovabbvisszuk, hogy a lanc kesobbi node-jai elerjek.\nconst model = $json;\nconst FEEDS = [\n  { url: 'https://feeds.bbci.co.uk/sport/football/rss.xml', source: 'BBC' },\n  { url: 'https://www.theguardian.com/football/rss',        source: 'Guardian' },\n];\nreturn FEEDS.map(f => ({ json: { ...f, _model: model } }));"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000012",
+      "name": "News URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 20000,
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000013",
+      "name": "Fetch News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1320,
+        340
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// RSS parse. A BBC CDATA-t hasznal a cimekhez, a Guardian nem — mindketto kell.\n// A kimenet EGY item: a modell + a cikkek, hogy a lanc tovabb tudjon menni.\n\nfunction parseRss(xml, source) {\n  const out = [];\n  const items = String(xml).split('<item>').slice(1);\n  for (const raw of items) {\n    const chunk = raw.split('</item>')[0];\n    const pick = tag => {\n      const cdata = new RegExp('<' + tag + '><!\\\\[CDATA\\\\[([\\\\s\\\\S]*?)\\\\]\\\\]></' + tag + '>').exec(chunk);\n      if (cdata) return cdata[1].trim();\n      const plain = new RegExp('<' + tag + '>([\\\\s\\\\S]*?)</' + tag + '>').exec(chunk);\n      return plain ? plain[1].replace(/<[^>]*>/g, '').trim() : '';\n    };\n    const title = pick('title');\n    if (!title) continue;\n    out.push({\n      source,\n      title,\n      description: pick('description').slice(0, 300),\n      pubDate: pick('pubDate'),\n    });\n  }\n  return out;\n}\n\nlet model = null;\nconst articles = [];\nconst newsErrors = [];\n\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (!model && j._model) model = j._model;\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j.data;\n  if (status && status !== 200) { newsErrors.push((j.source || '?') + ': HTTP ' + status); continue; }\n  if (typeof body !== 'string' || body.length < 200) { newsErrors.push((j.source || '?') + ': ures valasz'); continue; }\n  try {\n    articles.push(...parseRss(body, j.source || '?'));\n  } catch (e) {\n    newsErrors.push((j.source || '?') + ': parse hiba');\n  }\n}\n\n// A modell mezoit a legfelso szintre tesszuk, hogy a Fan Out Leagues valtozatlanul mukodjon.\nconst base = model || {};\nreturn [{ json: { ...base, _articles: articles, _news_errors: newsErrors } }];"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000014",
+      "name": "Parse Articles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// A modell mellé most az odds kell. Ligankent egy kereses.\nconst m = $json;\nreturn (m.leagues || []).map(lg => ({ json: {\n  ...lg,\n  _model: { ratings: m.ratings, leagueMeta: m.leagueMeta, config: m.config,\n            total_matches: m.total_matches, fetch_errors: m.fetch_errors,\n            teams_rated: m.teams_rated },\n}}));"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000015",
+      "name": "Fan Out Leagues",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.the-odds-api.com/v4/sports/' + $json.api + '/odds' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "regions",
+              "value": "eu"
+            },
+            {
+              "name": "markets",
+              "value": "h2h,totals,btts"
+            },
+            {
+              "name": "oddsFormat",
+              "value": "decimal"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 3,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000016",
+      "name": "Fetch Odds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1980,
+        340
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// A \"Generate Legs\" node kodja. MINDEN kimenetel labkent, harom piacon.\n\nconst MAX_GOALS = 10;\nconst RHO = -0.13;\n\nfunction poissonPmf(k, lambda) {\n  let logF = 0;\n  for (let i = 2; i <= k; i++) logF += Math.log(i);\n  return Math.exp(-lambda + k * Math.log(lambda) - logF);\n}\nfunction tau(hg, ag, lh, la, rho) {\n  if (hg === 0 && ag === 0) return 1 - lh * la * rho;\n  if (hg === 0 && ag === 1) return 1 + lh * rho;\n  if (hg === 1 && ag === 0) return 1 + la * rho;\n  if (hg === 1 && ag === 1) return 1 - rho;\n  return 1;\n}\nfunction predict(hr, ar, leagueAvg, homeAdv) {\n  const lh = hr.attack * ar.defence * leagueAvg * homeAdv;\n  const la = ar.attack * hr.defence * leagueAvg;\n  const grid = []; let total = 0;\n  for (let h = 0; h <= MAX_GOALS; h++) {\n    grid[h] = [];\n    for (let a = 0; a <= MAX_GOALS; a++) {\n      const p = poissonPmf(h, lh) * poissonPmf(a, la) * tau(h, a, lh, la, RHO);\n      grid[h][a] = Math.max(0, p); total += grid[h][a];\n    }\n  }\n  let home = 0, draw = 0, away = 0, over25 = 0, btts = 0;\n  for (let h = 0; h <= MAX_GOALS; h++) for (let a = 0; a <= MAX_GOALS; a++) {\n    const p = grid[h][a] / total;\n    if (h > a) home += p; else if (h === a) draw += p; else away += p;\n    if (h + a > 2.5) over25 += p;\n    if (h > 0 && a > 0) btts += p;\n  }\n  return { lh, la, home, draw, away, over25, btts };\n}\n\n// A ket forras maskepp irja a csapatneveket. Ami nem illeszkedik, az az\n// unmatched listaba kerul es megjelenik a jelentesben - nem tunik el csendben.\nconst ALIAS = {\n  'manchester united': 'Man United', 'manchester city': 'Man City',\n  'newcastle united': 'Newcastle', 'tottenham hotspur': 'Tottenham',\n  'wolverhampton wanderers': 'Wolves', 'nottingham forest': \"Nott'm Forest\",\n  'brighton and hove albion': 'Brighton', 'brighton & hove albion': 'Brighton',\n  'west ham united': 'West Ham', 'leeds united': 'Leeds',\n  'leicester city': 'Leicester', 'ipswich town': 'Ipswich',\n  'sheffield united': 'Sheffield United', 'luton town': 'Luton',\n  'afc bournemouth': 'Bournemouth', 'crystal palace': 'Crystal Palace',\n  'atletico madrid': 'Ath Madrid', 'athletic bilbao': 'Ath Bilbao',\n  'real sociedad': 'Sociedad', 'real betis': 'Betis',\n  'celta vigo': 'Celta', 'rayo vallecano': 'Vallecano',\n  'deportivo alaves': 'Alaves', 'real valladolid': 'Valladolid',\n  'racing santander': 'Santander', 'real madrid': 'Real Madrid',\n  'fc barcelona': 'Barcelona', 'barcelona': 'Barcelona',\n  'bayern munich': 'Bayern Munich', 'bayern munchen': 'Bayern Munich',\n  'borussia dortmund': 'Dortmund', 'borussia monchengladbach': \"M'gladbach\",\n  'bayer leverkusen': 'Leverkusen', 'eintracht frankfurt': 'Ein Frankfurt',\n  'vfb stuttgart': 'Stuttgart', 'vfl wolfsburg': 'Wolfsburg',\n  'werder bremen': 'Werder Bremen', 'fc koln': 'FC Koln', '1 fc koln': 'FC Koln',\n  'rb leipzig': 'RB Leipzig', 'sc freiburg': 'Freiburg', 'fc augsburg': 'Augsburg',\n  'mainz 05': 'Mainz', 'fsv mainz 05': 'Mainz', 'tsg hoffenheim': 'Hoffenheim',\n  'inter milan': 'Inter', 'ac milan': 'Milan', 'as roma': 'Roma',\n  'ss lazio': 'Lazio', 'ssc napoli': 'Napoli',\n  'atalanta bc': 'Atalanta', 'acf fiorentina': 'Fiorentina',\n  'hellas verona': 'Verona', 'us lecce': 'Lecce', 'torino fc': 'Torino',\n  'paris saint germain': 'Paris SG', 'paris saintgermain': 'Paris SG',\n  'olympique marseille': 'Marseille', 'olympique lyonnais': 'Lyon',\n  'as monaco': 'Monaco', 'lille osc': 'Lille', 'stade rennais': 'Rennes',\n  'ogc nice': 'Nice', 'rc lens': 'Lens', 'fc nantes': 'Nantes',\n};\nconst norm = s => String(s).toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\\s+/g, ' ').trim();\n\nfunction findTeam(ratings, league, apiName) {\n  const direct = ratings[league + '|' + apiName];\n  if (direct) return direct;\n  const n = norm(apiName);\n  const aliased = ALIAS[n];\n  if (aliased && ratings[league + '|' + aliased]) return ratings[league + '|' + aliased];\n  const keys = Object.keys(ratings).filter(k => k.startsWith(league + '|'));\n  for (const k of keys) if (norm(k.slice(league.length + 1)) === n) return ratings[k];\n  for (const k of keys) {\n    const nt = norm(k.slice(league.length + 1));\n    if (nt.length >= 4 && (n.includes(nt) || nt.includes(n))) return ratings[k];\n  }\n  return null;\n}\n\n// --- feldolgozas ---\nconst legs = [];\nconst unmatched = [], tooThin = [], oddsErrors = [];\nlet model = null, eventsSeen = 0, creditsLeft = null;\nconst marketsSeen = {};\n\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (!model && j._model) model = j._model;\n  const mdl = j._model || model;\n  if (!mdl) continue;\n  const cfg = mdl.config || {};\n  const haircut = cfg.tippmixHaircut !== undefined ? cfg.tippmixHaircut : 0.045;\n  const league = j.code, leagueName = j.name;\n\n  // Kredit-fogyas a valasz fejlecebol. A The Odds API koltsege piacok x regiok,\n  // nem keresenkent 1 - ezert kell figyelni.\n  const hdr = j.headers || {};\n  if (hdr['x-requests-remaining'] !== undefined) creditsLeft = Number(hdr['x-requests-remaining']);\n\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j;\n  if (status && status !== 200) { oddsErrors.push(leagueName + ': HTTP ' + status); continue; }\n  if (!Array.isArray(body)) continue;\n  const meta = (mdl.leagueMeta || {})[league];\n  if (!meta) continue;\n\n  for (const ev of body) {\n    eventsSeen++;\n    if (!ev.bookmakers || ev.bookmakers.length < 3) continue;\n    const hoursAhead = (new Date(ev.commence_time) - new Date()) / 3600000;\n    if (hoursAhead < 0 || hoursAhead > (cfg.maxHoursAhead || 96)) continue;\n\n    const hr = findTeam(mdl.ratings, league, ev.home_team);\n    const ar = findTeam(mdl.ratings, league, ev.away_team);\n    if (!hr || !ar) {\n      if (!hr) unmatched.push(leagueName + ': ' + ev.home_team);\n      if (!ar) unmatched.push(leagueName + ': ' + ev.away_team);\n      continue;\n    }\n    // Keves meccsu csapat (ujonc a szezon elejen): a rating megbizhatatlan.\n    if (hr.matches < 8 || ar.matches < 8) {\n      const thin = [];\n      if (hr.matches < 8) thin.push(hr.team + ' (' + hr.matches + ')');\n      if (ar.matches < 8) thin.push(ar.team + ' (' + ar.matches + ')');\n      tooThin.push(leagueName + ': ' + ev.home_team + ' vs ' + ev.away_team + ' - ' + thin.join(', '));\n      continue;\n    }\n\n    const pr = predict(hr, ar, meta.leagueAvg, meta.homeAdv);\n\n    const q = {};\n    const add = (key, price, book) => {\n      const p = Number(price);\n      if (!Number.isFinite(p) || p <= 1) return;\n      (q[key] = q[key] || []).push({ price: p, book });\n    };\n    for (const bk of ev.bookmakers) {\n      for (const mk of (bk.markets || [])) {\n        marketsSeen[mk.key] = (marketsSeen[mk.key] || 0) + 1;\n        for (const oc of (mk.outcomes || [])) {\n          const bookName = bk.title || bk.key;\n          if (mk.key === 'h2h') {\n            if (oc.name === ev.home_team) add('h2h|home', oc.price, bookName);\n            else if (oc.name === ev.away_team) add('h2h|away', oc.price, bookName);\n            else if (String(oc.name).toLowerCase() === 'draw') add('h2h|draw', oc.price, bookName);\n          } else if (mk.key === 'totals') {\n            if (Number(oc.point) !== 2.5) continue;\n            const nm = String(oc.name).toLowerCase();\n            if (nm === 'over') add('totals|over25', oc.price, bookName);\n            else if (nm === 'under') add('totals|under25', oc.price, bookName);\n          } else if (mk.key === 'btts') {\n            const nm = String(oc.name).toLowerCase();\n            if (nm === 'yes') add('btts|btts_yes', oc.price, bookName);\n            else if (nm === 'no') add('btts|btts_no', oc.price, bookName);\n          }\n        }\n      }\n    }\n\n    // De-vigeles piaconkent kulon. Ha egy piac nincs meg (pl. a btts nem\n    // elerheto ezen az instancian), az a piac egyszeruen kimarad.\n    const devig = keys => {\n      for (const k of keys) if (!(q[k] || []).length || q[k].length < 3) return null;\n      const best = {}, avg = {};\n      for (const k of keys) {\n        const ps = q[k].map(x => x.price);\n        best[k] = Math.max(...ps);\n        avg[k] = ps.reduce((a, b) => a + b, 0) / ps.length;\n      }\n      const ipSum = keys.reduce((a, k) => a + 1 / best[k], 0);\n      const probs = {};\n      for (const k of keys) probs[k] = (1 / best[k]) / ipSum;\n      return { best, avg, probs, marginPct: (ipSum - 1) * 100 };\n    };\n\n    const SPECS = [\n      { keys: ['h2h|home', 'h2h|draw', 'h2h|away'],\n        model: { 'h2h|home': pr.home, 'h2h|draw': pr.draw, 'h2h|away': pr.away },\n        labels: { 'h2h|home': '1 (hazai)', 'h2h|draw': 'X (dontetlen)', 'h2h|away': '2 (vendeg)' } },\n      { keys: ['totals|over25', 'totals|under25'],\n        model: { 'totals|over25': pr.over25, 'totals|under25': 1 - pr.over25 },\n        labels: { 'totals|over25': 'Over 2.5 gol', 'totals|under25': 'Under 2.5 gol' } },\n      { keys: ['btts|btts_yes', 'btts|btts_no'],\n        model: { 'btts|btts_yes': pr.btts, 'btts|btts_no': 1 - pr.btts },\n        labels: { 'btts|btts_yes': 'Mindketto szorez', 'btts|btts_no': 'Nem szorez mindketto' } },\n    ];\n\n    for (const spec of SPECS) {\n      const d = devig(spec.keys);\n      if (!d) continue;\n      for (const k of spec.keys) {\n        const parts = k.split('|');\n        const market = parts[0], selection = parts[1];\n        const mp = spec.model[k], kp = d.probs[k];\n        const diff = mp - kp;\n        // A bizalom a modell es a piac EGYETERTESEBOL jon, nem az elteresebol.\n        // Meres: ahol a modell sokkal tobbet lat, ott jellemzoen a modell teved.\n        let confidence;\n        if (Math.abs(diff) <= 0.03) confidence = 'MAGAS';\n        else if (diff <= 0.08) confidence = 'KOZEPES';\n        else confidence = 'ALACSONY';\n\n        legs.push({\n          leg_id: ev.id + '-' + market + '-' + selection,\n          event_id: ev.id,\n          match_name: ev.home_team + ' vs ' + ev.away_team,\n          home_team: ev.home_team, away_team: ev.away_team,\n          league: leagueName, kickoff: ev.commence_time,\n          market: market, selection: selection, label: spec.labels[k],\n          model_prob: Math.round(mp * 10000) / 10000,\n          market_prob: Math.round(kp * 10000) / 10000,\n          market_avg_odds: Math.round(d.avg[k] * 100) / 100,\n          best_odds: Math.round(d.best[k] * 100) / 100,\n          tippmix_odds: Math.round(d.avg[k] * (1 - haircut) * 100) / 100,\n          confidence: confidence,\n          news_flag: 'ok', news_note: '',\n          created_at: new Date().toISOString(),\n        });\n      }\n    }\n  }\n}\n\nconst summary = {\n  _summary: true,\n  events_seen: eventsSeen, legs_built: legs.length,\n  unmatched: [...new Set(unmatched)], too_thin: [...new Set(tooThin)],\n  odds_errors: oddsErrors, markets_seen: marketsSeen,\n  credits_left: creditsLeft,\n  model_matches: model ? model.total_matches : 0,\n  model_teams: model ? model.teams_rated : 0,\n  fetch_errors: model ? model.fetch_errors : [],\n  config: model ? model.config : {},\n};\nif (!legs.length) return [{ json: summary }];\nreturn [...legs.map(l => ({ json: l })), { json: summary }];\n"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000017",
+      "name": "Generate Legs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "not-summary",
+              "leftValue": "={{ $json.leg_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true
+      },
+      "id": "5717c0de-0003-4000-8000-000000000018",
+      "name": "Split Legs",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        2420,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// A cikkek szurese azokra, amelyek a slate csapatait emlitik, majd EGY prompt.\n// Egyetlen LLM hivas futasonkent — nem csapatonkent, hogy olcso maradjon.\n\nconst legs = $input.all().map(i => i.json).filter(l => l.leg_id);\nconst articles = (() => {\n  try { return $('Parse Articles').first().json._articles || []; } catch (e) { return []; }\n})();\n\n// csapatnevek a slate-rol\nconst teams = new Set();\nfor (const l of legs) {\n  if (l.home_team) teams.add(l.home_team);\n  if (l.away_team) teams.add(l.away_team);\n  if (!l.home_team && l.match_name) {\n    const p = String(l.match_name).split(' vs ');\n    if (p[0]) teams.add(p[0].trim());\n    if (p[1]) teams.add(p[1].trim());\n  }\n}\nconst teamList = [...teams];\n\n// egyszeru nevegyezes: a cikk cime vagy leadje tartalmazza a csapatnevet\nconst norm = s => String(s).toLowerCase();\nconst matched = [];\nfor (const a of articles) {\n  const hay = norm(a.title + ' ' + a.description);\n  const hits = teamList.filter(t => {\n    const n = norm(t);\n    if (n.length < 4) return false;\n    return hay.includes(n);\n  });\n  if (hits.length) matched.push({ ...a, teams: hits });\n}\n\n// max 40 cikk, hogy a prompt kezelheto maradjon\nconst use = matched.slice(0, 40);\n\nconst payload = use.map((a, i) =>\n  (i + 1) + '. [' + a.teams.join(', ') + '] ' + a.title + (a.description ? ' — ' + a.description : '')\n).join('\\n');\n\nreturn [{ json: {\n  has_news: use.length > 0,\n  article_count: use.length,\n  total_articles: articles.length,\n  teams_on_slate: teamList.length,\n  news_payload: payload,\n  team_list: teamList.join(', '),\n}}];"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000019",
+      "name": "Build News Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-news",
+              "leftValue": "={{ $json.has_news }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5717c0de-0003-4000-8000-000000000020",
+      "name": "Has News",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2860,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-5-20250929",
+          "cachedResultName": "Claude Sonnet 4.5"
+        },
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000021",
+      "name": "News Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        3080,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Csapatok a slate-en:\n{{ $json.team_list }}\n\nHirek:\n{{ $json.news_payload }}\n\nAdd vissza a JSON tombot.",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Sportujsagirasi hireket elemzel fogadasi dontestamogatashoz.\n\nKapsz egy csapatlistat es hir-cimeket. Minden EMLITETT csapatra dontsd el, hogy a hir\na csapat KOZELGO MECCSBELI TELJESITMENYE szempontjabol negativ, semleges vagy pozitiv.\n\nAmit negativnak szamits: kulcsjatekos serulese vagy eltiltasa, tobb hianyzo, edzovaltas\nkozvetlenul a meccs elott, komoly belso konfliktus, sulyos formahanyatlas.\nAmit NE szamits negativnak: atigazolasi pletyka, altalanos velemenycikk, penzugyi hir,\nkorabbi meccs osszefoglaloja, szurkoloi hangulat.\n\nseverity skala:\n0 = nincs erdemi hatas\n1 = enyhe (egy rotacios jatekos hianyzik, bizonytalan hir)\n2 = erdemi (kulcsjatekos biztosan hianyzik)\n3 = sulyos (tobb kulcsjatekos hianyzik, vagy edzot menesztettek)\n\nCsak azokat a csapatokat sorold fel, ahol a severity >= 1. Ha egyik csapatnal sincs\nerdemi hir, adj vissza ures tombot.\n\nVALASZ FORMATUM — kizarolag egy JSON tomb, semmi mas szoveg:\n[{\"team\":\"pontos csapatnev a listabol\",\"impact\":\"negative|positive\",\"severity\":0-3,\"reason\":\"rovid magyar indoklas\"}]"
+            }
+          ]
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000022",
+      "name": "Analyze News",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3080,
+        260
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {},
+      "id": "5717c0de-0003-4000-8000-000000000023",
+      "name": "No News",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3080,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "numberInputs": 2
+      },
+      "id": "5717c0de-0003-4000-8000-000000000024",
+      "name": "Combine News Branches",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3300,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Az LLM valaszanak alkalmazasa a labakra.\n//\n// FONTOS TERVEZESI DONTES: a hir NEM modositja a valoszinuseget.\n// A hir->valoszinuseg konverziora nincs validalt meresunk, es egy kitalalt\n// szorzo elrontana a kalibraciot, ami a modell egyetlen bizonyitott erenye.\n// Ehelyett a hir KIZAR (veto) vagy megjelol (warn).\n\nconst legs = (() => {\n  try { return $('Split Legs').all().map(i => i.json).filter(l => l.leg_id); } catch (e) { return []; }\n})();\n\n// Az LLM valasza. Vedekezo parse: ha barmi elromlik, a slate hir nelkul megy tovabb.\nlet signals = [];\nlet llmError = null;\ntry {\n  const items = $input.all().map(i => i.json);\n  const raw = items.map(x => x.text || x.output || x.response || x.data || '').filter(Boolean).join('\\n');\n  if (raw) {\n    const m = raw.match(/\\[[\\s\\S]*\\]/);\n    if (m) {\n      const parsed = JSON.parse(m[0]);\n      if (Array.isArray(parsed)) signals = parsed;\n    }\n  }\n} catch (e) {\n  llmError = String(e.message || e).slice(0, 120);\n}\n\nconst norm = s => String(s || '').toLowerCase().trim();\nconst byTeam = {};\nfor (const s of signals) {\n  const t = norm(s.team);\n  if (!t) continue;\n  const sev = Number(s.severity);\n  byTeam[t] = {\n    impact: norm(s.impact),\n    severity: Number.isFinite(sev) ? sev : 0,\n    reason: String(s.reason || '').slice(0, 120),\n  };\n}\n\n// Melyik csapat MELLETT szol egy lab? Csak azokra alkalmazunk vetot.\nconst backedTeams = leg => {\n  const parts = String(leg.match_name || '').split(' vs ');\n  const home = leg.home_team || (parts[0] || '').trim();\n  const away = leg.away_team || (parts[1] || '').trim();\n  if (leg.market === 'h2h') {\n    if (leg.selection === 'home') return [home];\n    if (leg.selection === 'away') return [away];\n    return [];                       // dontetlen: egyik csapat mellett sem szol\n  }\n  return [];                         // totals / btts: nem csapat-fuggo iranyban\n};\n\nlet vetoed = 0, warned = 0;\nconst out = legs.map(l => {\n  const backed = backedTeams(l);\n  let flag = 'ok', note = '';\n  for (const t of backed) {\n    const sig = byTeam[norm(t)];\n    if (!sig || sig.impact !== 'negative') continue;\n    if (sig.severity >= 2) { flag = 'veto'; note = t + ': ' + sig.reason; break; }\n    if (sig.severity === 1 && flag === 'ok') { flag = 'warn'; note = t + ': ' + sig.reason; }\n  }\n  if (flag === 'veto') vetoed++; else if (flag === 'warn') warned++;\n  return { json: { ...l, news_flag: flag, news_note: note } };\n});\n\nconst meta = {\n  _news_meta: true,\n  signals_found: signals.length,\n  vetoed, warned,\n  llm_error: llmError,\n};\nif (!out.length) return [{ json: meta }];\nreturn [...out, { json: meta }];"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000025",
+      "name": "Apply News",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pontosan a bet_slate oszlopaira szukites. A meta itemet (_news_meta) kiszurjuk.\nconst COLS = ['leg_id','event_id','match_name','league','kickoff','market','selection',\n  'label','model_prob','market_prob','tippmix_odds','market_avg_odds','best_odds',\n  'confidence','news_flag','news_note','created_at'];\nreturn $input.all()\n  .filter(i => i.json && i.json.leg_id)\n  .map(i => {\n    const o = {};\n    for (const c of COLS) o[c] = i.json[c] !== undefined && i.json[c] !== null ? i.json[c] : (c === 'news_note' ? '' : null);\n    return { json: o };\n  });"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000026",
+      "name": "Prepare Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3740,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "g6EjXi82TbW6VB91"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000027",
+      "name": "Write Slate",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3960,
+        340
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Jelentes. Minden adatot $() hivatkozassal olvas, ezert a lanc vegen allhat.\nconst grab = (node, fn, dflt) => { try { return fn($(node)); } catch (e) { return dflt; } };\nconst s = grab('Generate Legs', n => n.all().map(i => i.json).find(x => x._summary), {}) || {};\nconst newsMeta = grab('Apply News', n => n.all().map(i => i.json).find(x => x._news_meta), {}) || {};\nconst prompt = grab('Build News Prompt', n => n.first().json, {}) || {};\nconst articles = grab('Parse Articles', n => n.first().json, {}) || {};\nconst written = grab('Prepare Rows', n => n.all().length, null);\n\nconst mk = s.markets_seen || {};\nconst L = [];\nL.push('📋 SLATE FRISSITVE');\nL.push('');\nL.push('Labak: ' + (s.legs_built || 0) + (written !== null ? ' (kiirva: ' + written + ')' : ''));\nL.push('Meccsek atnezve: ' + (s.events_seen || 0));\nL.push('Modell: ' + (s.model_matches || 0) + ' meccs, ' + (s.model_teams || 0) + ' csapat');\nL.push('');\nL.push('Piacok: h2h ' + (mk.h2h || 0) + ' · totals ' + (mk.totals || 0) + ' · btts ' + (mk.btts || 0));\nif (!mk.btts) L.push('ℹ️ A btts piac nem jott vissza — a szelveny a masik ket piacbol epul.');\nL.push('');\nL.push('Hirek: ' + (articles._articles ? articles._articles.length : 0) + ' cikk, '\n  + (prompt.article_count || 0) + ' illeszkedo');\nif (newsMeta.signals_found !== undefined) {\n  L.push('Hir-jelzes: ' + newsMeta.signals_found + ' · kizarva: ' + (newsMeta.vetoed || 0)\n    + ' · megjelolve: ' + (newsMeta.warned || 0));\n}\nif (newsMeta.llm_error) L.push('⚠️ LLM parse hiba: ' + newsMeta.llm_error);\nif (s.credits_left !== null && s.credits_left !== undefined) {\n  L.push('');\n  L.push('Odds API kredit maradt: ' + s.credits_left);\n  if (s.credits_left < 60) L.push('⚠️ Fogy a havi keret.');\n}\n\nconst probs = [];\nif ((s.too_thin || []).length) probs.push('ℹ️ Keves adat miatt kihagyva (' + s.too_thin.length + '):\\n' + s.too_thin.slice(0, 4).join('\\n'));\nif ((s.unmatched || []).length) probs.push('⚠️ Parositatlan csapatok (' + s.unmatched.length + '):\\n' + s.unmatched.slice(0, 5).join('\\n'));\nif ((s.odds_errors || []).length) probs.push('⚠️ Odds hibak:\\n' + s.odds_errors.slice(0, 3).join('\\n'));\nif ((s.fetch_errors || []).length) probs.push('⚠️ Adatletoltes:\\n' + s.fetch_errors.slice(0, 3).join('\\n'));\nif ((articles._news_errors || []).length) probs.push('⚠️ Hir-letoltes:\\n' + articles._news_errors.slice(0, 3).join('\\n'));\n\nlet msg = L.join('\\n');\nif (probs.length) msg += '\\n\\n' + probs.join('\\n\\n');\nif (!s.legs_built) msg += '\\n\\n❗ Nincs lab a slate-en. A /szelveny parancs addig nem tud dolgozni.';\n\nreturn [{ json: { message: msg, legs: s.legs_built || 0, written } }];"
+      },
+      "id": "5717c0de-0003-4000-8000-000000000028",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4180,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5717c0de-0003-4000-8000-000000000029",
+      "name": "Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4400,
+        340
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch History": {
+      "main": [
+        [
+          {
+            "node": "Build Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Model": {
+      "main": [
+        [
+          {
+            "node": "Clear Slate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Slate": {
+      "main": [
+        [
+          {
+            "node": "News URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "News URLs": {
+      "main": [
+        [
+          {
+            "node": "Fetch News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch News": {
+      "main": [
+        [
+          {
+            "node": "Parse Articles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Articles": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Leagues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Leagues": {
+      "main": [
+        [
+          {
+            "node": "Fetch Odds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Odds": {
+      "main": [
+        [
+          {
+            "node": "Generate Legs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Legs": {
+      "main": [
+        [
+          {
+            "node": "Split Legs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Legs": {
+      "main": [
+        [
+          {
+            "node": "Build News Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build News Prompt": {
+      "main": [
+        [
+          {
+            "node": "Has News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has News": {
+      "main": [
+        [
+          {
+            "node": "Analyze News",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze News": {
+      "main": [
+        [
+          {
+            "node": "Combine News Branches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No News": {
+      "main": [
+        [
+          {
+            "node": "Combine News Branches",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "News Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze News",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine News Branches": {
+      "main": [
+        [
+          {
+            "node": "Apply News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply News": {
+      "main": [
+        [
+          {
+            "node": "Prepare Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Rows": {
+      "main": [
+        [
+          {
+            "node": "Write Slate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Slate": {
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

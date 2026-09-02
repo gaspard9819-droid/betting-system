@@ -1,0 +1,374 @@
+{
+  "name": "Football Tips + Line Shopper",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Football Tips + Line Shopper\n\n## Tippek minden meccsre + hol a legjobb ar\n\n### A modell 49.6%-ban talalja el a kimenetelt (veletlen: 33.3%, fogadoiroda: 54.6%). Jol kalibralt: amikor 45%-ot mond, a valosag 49%.\n### DE a fogadoiroda meg mindig pontosabb, es a ~6% margo miatt a fogadas hosszu tavon vesztesege s marad. A tippek dontestamogatasra valok, nem penznyomtatasra.\n\n*Beallitas: The Odds API kulcs (Query Auth, 'apiKey'), Telegram credential, TELEGRAM_CHAT_ID env valtozo. Minimum odds: 1.30.*",
+        "height": 340,
+        "width": 1000,
+        "color": 4
+      },
+      "id": "5717c0de-0001-4000-8000-000000000001",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -460
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Modell betoltese\n\n### Letolti az utolso ket szezon eredmenyeit\n### 5 ligara a football-data.co.uk-rol (ingyenes, kulcs nelkul),\n### es kiszamolja a csapaterossegeket.\n### Ahol van xG adat, azt is hasznalja.",
+        "height": 300,
+        "width": 420,
+        "color": 5
+      },
+      "id": "5717c0de-0001-4000-8000-000000000002",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Odds + tippek\n\n### Lekeri a kozelgo meccsek oddsait minden konyvtol,\n### parositja a csapatokat a modellel, es kiszamolja\n### a valoszinusegeket (Poisson + Dixon-Coles).\n### A parositatlan neveket JELZI, nem nyeli el.",
+        "height": 300,
+        "width": 640,
+        "color": 5
+      },
+      "id": "5717c0de-0001-4000-8000-000000000003",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Jelentes\n\n### Meccsenkent: modell velemeny, piac velemeny,\n### bizalmi szint, es hol a legjobb ar.\n### A bizalom a modell es a piac egyetertesebol jon —\n### ahol ellentmondanak, ott a modell valoszinuleg teved.",
+        "height": 300,
+        "width": 480,
+        "color": 5
+      },
+      "id": "5717c0de-0001-4000-8000-000000000004",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        -80
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "5717c0de-0001-4000-8000-000000000010",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9,18 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5717c0de-0001-4000-8000-000000000011",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Beallitasok es a letoltendo szezonok.\n//\n// A szezonkod YYZZ: a 2026/27-es szezon '2627'. Ket szezont toltunk be,\n// mert a folyo szezon elejen meg alig van meccs (a modell kulonben\n// 3 meccsbol probalna csapaterosseget becsulni).\n\nconst NOW = new Date();\nconst y = NOW.getUTCFullYear(), mo = NOW.getUTCMonth() + 1;\n// a szezon augusztusban indul: januar-julius kozott meg az elozo evi szezonban vagyunk\nconst startYear = mo >= 8 ? y : y - 1;\nconst sc = yr => String(yr % 100).padStart(2, '0') + String((yr + 1) % 100).padStart(2, '0');\nconst SEASONS = [sc(startYear), sc(startYear - 1)];\n\nconst LEAGUES = [\n  { code: 'E0',  api: 'soccer_epl',                 name: 'Premier League' },\n  { code: 'SP1', api: 'soccer_spain_la_liga',       name: 'La Liga' },\n  { code: 'D1',  api: 'soccer_germany_bundesliga',  name: 'Bundesliga' },\n  { code: 'I1',  api: 'soccer_italy_serie_a',       name: 'Serie A' },\n  { code: 'F1',  api: 'soccer_france_ligue_one',    name: 'Ligue 1' },\n];\n\nconst CONFIG = {\n  minOdds: 1.30,        // ez alatt nem erdekel a kimenetel\n  maxOdds: 8.0,\n  maxHoursAhead: 72,    // ennyi oran belul kezdodo meccsek\n  myBook: 'bet365',     // a te alapertelmezett konyved (ar-osszehasonlitashoz)\n  minGapPct: 2.0,       // ekkora arkulonbsegtol jelzi kulon\n  maxTips: 15,          // max ennyi meccs az uzenetben\n};\n\nconst out = [];\nfor (const lg of LEAGUES) {\n  for (const s of SEASONS) {\n    out.push({ json: {\n      url: `https://www.football-data.co.uk/mmz4281/${s}/${lg.code}.csv`,\n      league: lg.code, api: lg.api, league_name: lg.name, season: s,\n      leagues: LEAGUES, config: CONFIG,\n    }});\n  }\n}\nreturn out;"
+      },
+      "id": "5717c0de-0001-4000-8000-000000000012",
+      "name": "Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 25000,
+          "batching": {
+            "batch": {
+              "batchSize": 3,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5717c0de-0001-4000-8000-000000000013",
+      "name": "Fetch History",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        500
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// CSV feldolgozas + Dixon-Coles csapaterossegek.\n// Ez a kod lokalisan tesztelve lett 1849 meccsen mielott ide kerult.\n\nconst XI = 0.0065;      // idobeli sulyozas: ~107 napos felezes\nconst SHRINK_K = 12;    // ennyi sulyozott meccsnel 50% a sajat adat\nconst XG_BLEND = 0.5;   // xG es valos gol keverese\nconst PRIOR_ATT = 0.92; // ujoncok atlag alatt teljesitenek\nconst PRIOR_DEF = 1.08;\n\nfunction parseCsv(raw, league) {\n  const text = String(raw).replace(/^\\uFEFF/, '');\n  const lines = text.split(/\\r?\\n/).filter(l => l.trim().length > 0);\n  if (lines.length < 2) return [];\n  // fejlecnev szerinti indexeles: az oszlopsorrend szezononkent valtozik\n  const head = lines[0].split(',').map(h => h.trim());\n  const col = {};\n  head.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });\n  for (const n of ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG']) {\n    if (col[n] === undefined) return [];\n  }\n  const hasXg = col['HxG'] !== undefined && col['AxG'] !== undefined;\n  const out = [];\n  for (let i = 1; i < lines.length; i++) {\n    const f = lines[i].split(',');\n    const home = (f[col['HomeTeam']] || '').trim();\n    const away = (f[col['AwayTeam']] || '').trim();\n    const fthg = f[col['FTHG']], ftag = f[col['FTAG']];\n    if (!home || !away || fthg === undefined || fthg === '' || ftag === '') continue;\n    const hg = Number(fthg), ag = Number(ftag);\n    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;\n    // dd/mm/yyyy — NEM ISO, kezzel kell bontani\n    const m = (f[col['Date']] || '').trim().match(/^(\\d{2})\\/(\\d{2})\\/(\\d{2}|\\d{4})$/);\n    if (!m) continue;\n    const yr = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);\n    const date = new Date(Date.UTC(yr, Number(m[2]) - 1, Number(m[1])));\n    if (isNaN(date.getTime())) continue;\n    const row = { league, date: date.toISOString(), home, away, hg, ag, hxg: null, axg: null };\n    if (hasXg) {\n      const hx = Number(f[col['HxG']]), ax = Number(f[col['AxG']]);\n      if (Number.isFinite(hx) && Number.isFinite(ax)) { row.hxg = hx; row.axg = ax; }\n    }\n    out.push(row);\n  }\n  return out;\n}\n\n// --- osszes CSV beolvasasa ---\nlet matches = [];\nconst fetchErrors = [];\nlet config = null, leagues = null;\n\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (!config && j.config) { config = j.config; leagues = j.leagues; }\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j.data;\n  if (status && status !== 200) {\n    fetchErrors.push(`${j.league || '?'} ${j.season || ''}: HTTP ${status}`);\n    continue;\n  }\n  if (typeof body !== 'string' || body.length < 100) {\n    fetchErrors.push(`${j.league || '?'} ${j.season || ''}: ures valasz`);\n    continue;\n  }\n  const rows = parseCsv(body, j.league);\n  if (!rows.length) fetchErrors.push(`${j.league} ${j.season}: 0 meccs`);\n  matches = matches.concat(rows);\n}\n\nif (!config) { config = {}; leagues = []; }\n\n// --- Dixon-Coles erossegek ---\nconst now = new Date();\nconst byLeague = {};\nfor (const m of matches) (byLeague[m.league] = byLeague[m.league] || []).push(m);\n\nconst ratings = {};\nconst leagueMeta = {};\n\nfor (const [league, rows] of Object.entries(byLeague)) {\n  const enriched = rows.map(m => {\n    const days = Math.max(0, (now - new Date(m.date)) / 86400000);\n    const w = Math.exp(-XI * days);\n    let hVal = m.hg, aVal = m.ag;\n    if (m.hxg !== null && m.axg !== null) {\n      hVal = XG_BLEND * m.hxg + (1 - XG_BLEND) * m.hg;\n      aVal = XG_BLEND * m.axg + (1 - XG_BLEND) * m.ag;\n    }\n    return { ...m, w, hVal, aVal };\n  }).filter(m => m.w > 1e-6);\n  if (!enriched.length) continue;\n\n  let sw = 0, shg = 0, sag = 0;\n  for (const m of enriched) { sw += m.w; shg += m.w * m.hVal; sag += m.w * m.aVal; }\n  const avgHome = shg / sw, avgAway = sag / sw;\n  const leagueAvg = (avgHome + avgAway) / 2;\n  const homeAdv = avgAway > 0 ? avgHome / avgAway : 1.3;\n  leagueMeta[league] = { leagueAvg, homeAdv, matches: enriched.length };\n\n  const t = {};\n  const get = n => (t[n] = t[n] || { sf: 0, sa: 0, w: 0, games: 0 });\n  for (const m of enriched) {\n    const H = get(m.home), A = get(m.away);\n    H.sf += m.w * (m.hVal / homeAdv); H.sa += m.w * m.aVal; H.w += m.w; H.games++;\n    A.sf += m.w * m.aVal; A.sa += m.w * (m.hVal / homeAdv); A.w += m.w; A.games++;\n  }\n  for (const [team, s] of Object.entries(t)) {\n    const k = s.w / (s.w + SHRINK_K);\n    ratings[league + '|' + team] = {\n      team, league,\n      attack: k * ((s.sf / s.w) / leagueAvg) + (1 - k) * PRIOR_ATT,\n      defence: k * ((s.sa / s.w) / leagueAvg) + (1 - k) * PRIOR_DEF,\n      matches: s.games,\n    };\n  }\n}\n\nreturn [{ json: {\n  ratings, leagueMeta, config, leagues,\n  total_matches: matches.length,\n  fetch_errors: fetchErrors,\n  teams_rated: Object.keys(ratings).length,\n}}];"
+      },
+      "id": "5717c0de-0001-4000-8000-000000000014",
+      "name": "Build Model",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// A modell mellé most az odds kell. Ligankent egy kereses.\nconst m = $json;\nreturn (m.leagues || []).map(lg => ({ json: {\n  ...lg,\n  _model: { ratings: m.ratings, leagueMeta: m.leagueMeta, config: m.config,\n            total_matches: m.total_matches, fetch_errors: m.fetch_errors,\n            teams_rated: m.teams_rated },\n}}));"
+      },
+      "id": "5717c0de-0001-4000-8000-000000000015",
+      "name": "Fan Out Leagues",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://api.the-odds-api.com/v4/sports/' + $json.api + '/odds' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "regions",
+              "value": "eu,uk"
+            },
+            {
+              "name": "markets",
+              "value": "h2h"
+            },
+            {
+              "name": "oddsFormat",
+              "value": "decimal"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 20000,
+          "batching": {
+            "batch": {
+              "batchSize": 3,
+              "batchInterval": 1000
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5717c0de-0001-4000-8000-000000000016",
+      "name": "Fetch Odds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        880,
+        420
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Tippek eloallitasa: Poisson + Dixon-Coles, majd osszevetes a piaccal.\n\nconst MAX_GOALS = 10;\nconst RHO = -0.13;\n\nfunction poissonPmf(k, lambda) {\n  let logF = 0;\n  for (let i = 2; i <= k; i++) logF += Math.log(i);\n  return Math.exp(-lambda + k * Math.log(lambda) - logF);\n}\nfunction tau(hg, ag, lh, la, rho) {\n  if (hg === 0 && ag === 0) return 1 - lh * la * rho;\n  if (hg === 0 && ag === 1) return 1 + lh * rho;\n  if (hg === 1 && ag === 0) return 1 + la * rho;\n  if (hg === 1 && ag === 1) return 1 - rho;\n  return 1;\n}\nfunction predict(hr, ar, leagueAvg, homeAdv) {\n  const lh = hr.attack * ar.defence * leagueAvg * homeAdv;\n  const la = ar.attack * hr.defence * leagueAvg;\n  const grid = []; let total = 0;\n  for (let h = 0; h <= MAX_GOALS; h++) {\n    grid[h] = [];\n    for (let a = 0; a <= MAX_GOALS; a++) {\n      const p = poissonPmf(h, lh) * poissonPmf(a, la) * tau(h, a, lh, la, RHO);\n      grid[h][a] = Math.max(0, p); total += grid[h][a];\n    }\n  }\n  let home = 0, draw = 0, away = 0, over25 = 0, btts = 0;\n  for (let h = 0; h <= MAX_GOALS; h++) for (let a = 0; a <= MAX_GOALS; a++) {\n    const p = grid[h][a] / total;\n    if (h > a) home += p; else if (h === a) draw += p; else away += p;\n    if (h + a > 2.5) over25 += p;\n    if (h > 0 && a > 0) btts += p;\n  }\n  return { lh, la, probs: [home, draw, away], over25, btts };\n}\n\n// Csapatnev-parositas. A ket forras maskepp irja a neveket.\nconst ALIAS = {\n  'manchester united': 'Man United', 'manchester city': 'Man City',\n  'newcastle united': 'Newcastle', 'tottenham hotspur': 'Tottenham',\n  'wolverhampton wanderers': 'Wolves', 'nottingham forest': \"Nott'm Forest\",\n  'brighton and hove albion': 'Brighton', 'brighton & hove albion': 'Brighton',\n  'west ham united': 'West Ham', 'leeds united': 'Leeds',\n  'leicester city': 'Leicester', 'ipswich town': 'Ipswich',\n  'sheffield united': 'Sheffield United', 'luton town': 'Luton',\n  'afc bournemouth': 'Bournemouth', 'crystal palace': 'Crystal Palace',\n  'atletico madrid': 'Ath Madrid', 'athletic bilbao': 'Ath Bilbao',\n  'real sociedad': 'Sociedad', 'real betis': 'Betis',\n  'celta vigo': 'Celta', 'rayo vallecano': 'Vallecano',\n  'deportivo alaves': 'Alaves', 'real valladolid': 'Valladolid',\n  'racing santander': 'Santander', 'real madrid': 'Real Madrid',\n  'fc barcelona': 'Barcelona', 'barcelona': 'Barcelona',\n  'bayern munich': 'Bayern Munich', 'bayern münchen': 'Bayern Munich',\n  'borussia dortmund': 'Dortmund', 'borussia monchengladbach': \"M'gladbach\",\n  'bayer leverkusen': 'Leverkusen', 'eintracht frankfurt': 'Ein Frankfurt',\n  'vfb stuttgart': 'Stuttgart', 'vfl wolfsburg': 'Wolfsburg',\n  'werder bremen': 'Werder Bremen', 'fc koln': 'FC Koln', '1. fc koln': 'FC Koln',\n  'rb leipzig': 'RB Leipzig', 'sc freiburg': 'Freiburg', 'fc augsburg': 'Augsburg',\n  'mainz 05': 'Mainz', 'fsv mainz 05': 'Mainz', 'tsg hoffenheim': 'Hoffenheim',\n  'inter milan': 'Inter', 'ac milan': 'Milan', 'as roma': 'Roma',\n  'juventus': 'Juventus', 'ss lazio': 'Lazio', 'ssc napoli': 'Napoli',\n  'atalanta bc': 'Atalanta', 'acf fiorentina': 'Fiorentina',\n  'hellas verona': 'Verona', 'us lecce': 'Lecce', 'torino fc': 'Torino',\n  'paris saint germain': 'Paris SG', 'paris saint-germain': 'Paris SG',\n  'olympique marseille': 'Marseille', 'olympique lyonnais': 'Lyon',\n  'as monaco': 'Monaco', 'lille osc': 'Lille', 'stade rennais': 'Rennes',\n  'ogc nice': 'Nice', 'rc lens': 'Lens', 'fc nantes': 'Nantes',\n};\nconst norm = s => String(s).toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\\s+/g, ' ').trim();\n\nfunction findTeam(ratings, league, apiName) {\n  const direct = ratings[league + '|' + apiName];\n  if (direct) return direct;\n  const n = norm(apiName);\n  const aliased = ALIAS[n];\n  if (aliased && ratings[league + '|' + aliased]) return ratings[league + '|' + aliased];\n  // laza egyezes: normalizalt nev, vagy az egyik tartalmazza a masikat\n  const keys = Object.keys(ratings).filter(k => k.startsWith(league + '|'));\n  for (const k of keys) {\n    const t = k.slice(league.length + 1);\n    const nt = norm(t);\n    if (nt === n) return ratings[k];\n  }\n  for (const k of keys) {\n    const t = k.slice(league.length + 1);\n    const nt = norm(t);\n    if (nt.length >= 4 && (n.includes(nt) || nt.includes(n))) return ratings[k];\n  }\n  return null;\n}\n\n// --- feldolgozas ---\nconst tips = [];\nconst unmatched = [];\nconst tooThin = [];\nconst oddsErrors = [];\nlet model = null, eventsSeen = 0;\n\nfor (const item of $input.all()) {\n  const j = item.json;\n  if (!model && j._model) model = j._model;\n  const mdl = j._model || model;\n  if (!mdl) continue;\n  const cfg = mdl.config || {};\n  const league = j.code;\n  const leagueName = j.name;\n\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j;\n  if (status && status !== 200) {\n    oddsErrors.push(`${leagueName}: HTTP ${status}`);\n    continue;\n  }\n  if (!Array.isArray(body)) continue;\n\n  const meta = (mdl.leagueMeta || {})[league];\n  if (!meta) continue;\n\n  for (const ev of body) {\n    eventsSeen++;\n    if (!ev.bookmakers || ev.bookmakers.length < 3) continue;\n    const kickoff = new Date(ev.commence_time);\n    const hoursAhead = (kickoff - new Date()) / 3600000;\n    if (hoursAhead < 0 || hoursAhead > (cfg.maxHoursAhead || 72)) continue;\n\n    const hr = findTeam(mdl.ratings, league, ev.home_team);\n    const ar = findTeam(mdl.ratings, league, ev.away_team);\n    if (!hr || !ar) {\n      if (!hr) unmatched.push(`${leagueName}: ${ev.home_team}`);\n      if (!ar) unmatched.push(`${leagueName}: ${ev.away_team}`);\n      continue;\n    }\n    // Keves meccsu csapat (pl. frissen feljutott ujonc a szezon elejen):\n    // a rating megbizhatatlan. Kihagyjuk, DE jelezzuk — kulonben a szezon\n    // elejen meccsek tucatjai tunnenek el csendben.\n    if (hr.matches < 8 || ar.matches < 8) {\n      const thin = [];\n      if (hr.matches < 8) thin.push(`${hr.team} (${hr.matches})`);\n      if (ar.matches < 8) thin.push(`${ar.team} (${ar.matches})`);\n      tooThin.push(`${leagueName}: ${ev.home_team} vs ${ev.away_team} — ${thin.join(', ')}`);\n      continue;\n    }\n\n    const pr = predict(hr, ar, meta.leagueAvg, meta.homeAdv);\n\n    // odds osszegyujtese kimenetelenkent\n    const byOut = { 0: [], 1: [], 2: [] };\n    for (const bk of ev.bookmakers) {\n      const mk = (bk.markets || []).find(x => x.key === 'h2h');\n      if (!mk || !mk.outcomes) continue;\n      for (const oc of mk.outcomes) {\n        const price = Number(oc.price);\n        if (!Number.isFinite(price) || price <= 1) continue;\n        let idx = null;\n        if (oc.name === ev.home_team) idx = 0;\n        else if (oc.name === ev.away_team) idx = 2;\n        else if (String(oc.name).toLowerCase() === 'draw') idx = 1;\n        if (idx === null) continue;\n        byOut[idx].push({ book: bk.title || bk.key, key: bk.key, price });\n      }\n    }\n    if (byOut[0].length < 3 || byOut[1].length < 3 || byOut[2].length < 3) continue;\n\n    // piaci (de-vigelt) valoszinusegek a legjobb arakbol\n    const bestOf = i => byOut[i].reduce((a, b) => (b.price > a.price ? b : a));\n    const best = [bestOf(0), bestOf(1), bestOf(2)];\n    const ipSum = best.reduce((a, b) => a + 1 / b.price, 0);\n    const marketProbs = best.map(b => (1 / b.price) / ipSum);\n    const marginPct = (ipSum - 1) * 100;\n\n    // a modell tippje: a legvaloszinubb kimenetel, DE csak minOdds felett\n    const labels = ['1 (hazai)', 'X (dontetlen)', '2 (vendeg)'];\n    const names = [ev.home_team, 'Dontetlen', ev.away_team];\n    let pick = -1, pickP = 0;\n    for (let k = 0; k < 3; k++) {\n      if (best[k].price < (cfg.minOdds || 1.3)) continue;\n      if (best[k].price > (cfg.maxOdds || 8)) continue;\n      if (pr.probs[k] > pickP) { pickP = pr.probs[k]; pick = k; }\n    }\n    if (pick < 0) continue;\n\n    const avgPrice = byOut[pick].reduce((a, b) => a + b.price, 0) / byOut[pick].length;\n    const mine = byOut[pick].find(b => b.key === (cfg.myBook || 'bet365'));\n    const gapVsAvg = (best[pick].price / avgPrice - 1) * 100;\n    const gapVsMine = mine ? (best[pick].price / mine.price - 1) * 100 : null;\n\n    // BIZALOM: a modell es a piac egyetertesebol.\n    // Merve: ahol a modell erosen ELTER a piactol, ott jellemzoen a modell teved\n    // (a backteszt szerint a legnagyobb elteresek a legnagyobb hibak).\n    const diff = pr.probs[pick] - marketProbs[pick];\n    let confidence, confNote;\n    if (Math.abs(diff) <= 0.03) { confidence = 'MAGAS'; confNote = 'a modell es a piac egyetert'; }\n    else if (diff < -0.03)      { confidence = 'KOZEPES'; confNote = 'a piac ennel jobbnak latja'; }\n    else if (diff <= 0.08)      { confidence = 'KOZEPES'; confNote = 'a modell kicsit tobbet lat'; }\n    else                        { confidence = 'ALACSONY'; confNote = 'a modell sokkal tobbet lat — ez jellemzoen modellhiba, nem ertek'; }\n\n    tips.push({\n      league: leagueName, match_name: `${ev.home_team} vs ${ev.away_team}`,\n      kickoff: ev.commence_time, hours_ahead: Math.round(hoursAhead * 10) / 10,\n      pick_label: labels[pick], pick_name: names[pick],\n      model_prob: Math.round(pr.probs[pick] * 1000) / 10,\n      market_prob: Math.round(marketProbs[pick] * 1000) / 10,\n      all_model: pr.probs.map(p => Math.round(p * 1000) / 10),\n      all_market: marketProbs.map(p => Math.round(p * 1000) / 10),\n      best_odds: Math.round(best[pick].price * 100) / 100,\n      best_book: best[pick].book,\n      avg_odds: Math.round(avgPrice * 100) / 100,\n      my_odds: mine ? Math.round(mine.price * 100) / 100 : null,\n      gap_pct: Math.round((gapVsMine === null ? gapVsAvg : gapVsMine) * 10) / 10,\n      gap_is_vs_mine: gapVsMine !== null,\n      margin_pct: Math.round(marginPct * 10) / 10,\n      confidence, conf_note: confNote,\n      exp_goals: `${(pr.lh).toFixed(1)}-${(pr.la).toFixed(1)}`,\n      over25: Math.round(pr.over25 * 1000) / 10,\n      btts: Math.round(pr.btts * 1000) / 10,\n      book_count: byOut[pick].length,\n    });\n  }\n}\n\nconst summary = {\n  _summary: true,\n  events_seen: eventsSeen,\n  tips_found: tips.length,\n  unmatched: [...new Set(unmatched)],\n  too_thin: [...new Set(tooThin)],\n  odds_errors: oddsErrors,\n  model_matches: model ? model.total_matches : 0,\n  model_teams: model ? model.teams_rated : 0,\n  fetch_errors: model ? model.fetch_errors : [],\n  config: model ? model.config : {},\n};\n\nif (!tips.length) return [{ json: summary }];\nreturn [...tips.map(t => ({ json: t })), { json: summary }];"
+      },
+      "id": "5717c0de-0001-4000-8000-000000000017",
+      "name": "Generate Tips",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Telegram uzenet osszeallitasa. Egy uzenet, meccsenkent egy blokk.\n\nconst all = $input.all().map(i => i.json);\nconst sum = all.find(x => x._summary) || {};\nconst tips = all.filter(x => !x._summary);\nconst cfg = sum.config || {};\nconst maxTips = cfg.maxTips || 15;\n\nconst fmt = iso => {\n  try {\n    return new Date(iso).toLocaleString('hu-HU', { timeZone: 'Europe/Budapest',\n      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });\n  } catch (e) { return iso; }\n};\n\n// rendezes: eloszor a magas bizalmuak, azon belul a kozelebbi meccsek\nconst rank = { 'MAGAS': 0, 'KOZEPES': 1, 'ALACSONY': 2 };\ntips.sort((a, b) => (rank[a.confidence] - rank[b.confidence]) || (a.hours_ahead - b.hours_ahead));\nconst shown = tips.slice(0, maxTips);\n\nlet msg;\nif (!shown.length) {\n  msg = `⚽ Nincs tipp\\n\\n${sum.events_seen || 0} meccs atnezve, egyik sem felelt meg a szuronek (min ${cfg.minOdds || 1.3} odds, ${cfg.maxHoursAhead || 72} oran belul).`;\n} else {\n  const icon = { 'MAGAS': '🟢', 'KOZEPES': '🟡', 'ALACSONY': '🔴' };\n  const blocks = shown.map(t => {\n    const priceLine = t.gap_pct >= (cfg.minGapPct || 2)\n      ? `💰 ${t.best_book}: ${t.best_odds}  (${t.gap_is_vs_mine ? 'nalad: ' + t.my_odds : 'atlag: ' + t.avg_odds})  +${t.gap_pct}%`\n      : `   ${t.best_book}: ${t.best_odds}  (atlag ${t.avg_odds})`;\n    const warn = t.margin_pct > 8 ? `\\n   ⚠️ magas piaci margo (${t.margin_pct}%)` : '';\n    return `${icon[t.confidence]} ${t.match_name}\\n`\n      + `   ${fmt(t.kickoff)} · ${t.league}\\n`\n      + `   TIPP: ${t.pick_label}\\n`\n      + `   modell ${t.model_prob}% · piac ${t.market_prob}%\\n`\n      + `   varhato eredmeny ${t.exp_goals} · O2.5 ${t.over25}% · BTTS ${t.btts}%\\n`\n      + `${priceLine}\\n`\n      + `   ${t.conf_note}${warn}`;\n  });\n  const hi = shown.filter(t => t.confidence === 'MAGAS').length;\n  const lo = shown.filter(t => t.confidence === 'ALACSONY').length;\n  msg = `⚽ TIPPEK — ${shown.length} meccs\\n`\n    + `🟢 ${hi} megbizhato · 🔴 ${lo} ovatosan\\n\\n`\n    + blocks.join('\\n\\n')\n    + `\\n\\n──────────\\n`\n    + `Modell: ${sum.model_matches} meccs, ${sum.model_teams} csapat\\n`\n    + `A modell 49.6%-ban talal (veletlen: 33%), de a fogadoiroda 54.6% — es a margo miatt\\n`\n    + `a fogadas hosszu tavon vesztesegеs. Dontestamogatas, nem garancia.`;\n}\n\nconst probs = [];\nif ((sum.too_thin || []).length) probs.push(`ℹ️ Kihagyva keves adat miatt (${sum.too_thin.length}):\\n${sum.too_thin.slice(0, 5).join('\\n')}\\nA szezon elejen ez normalis — az ujoncoknak meg nincs eleg meccsuk.`);\nif ((sum.unmatched || []).length) probs.push(`⚠️ Parositatlan csapatok (${sum.unmatched.length}):\\n${sum.unmatched.slice(0, 6).join('\\n')}`);\nif ((sum.odds_errors || []).length) probs.push(`⚠️ Odds hibak:\\n${sum.odds_errors.slice(0, 3).join('\\n')}`);\nif ((sum.fetch_errors || []).length) probs.push(`⚠️ Adatletoltes:\\n${sum.fetch_errors.slice(0, 3).join('\\n')}`);\nif (probs.length) msg += `\\n\\n${probs.join('\\n\\n')}`;\n\nreturn [{ json: { message: msg, tip_count: shown.length,\n  high_conf: shown.filter(t => t.confidence === 'MAGAS').length,\n  events_seen: sum.events_seen || 0,\n  unmatched_count: (sum.unmatched || []).length,\n  too_thin_count: (sum.too_thin || []).length } }];"
+      },
+      "id": "5717c0de-0001-4000-8000-000000000018",
+      "name": "Build Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5717c0de-0001-4000-8000-000000000019",
+      "name": "Send Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1540,
+        420
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch History": {
+      "main": [
+        [
+          {
+            "node": "Build Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Model": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Leagues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Leagues": {
+      "main": [
+        [
+          {
+            "node": "Fetch Odds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Odds": {
+      "main": [
+        [
+          {
+            "node": "Generate Tips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Tips": {
+      "main": [
+        [
+          {
+            "node": "Build Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Message": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
