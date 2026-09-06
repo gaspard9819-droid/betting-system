@@ -214,6 +214,35 @@ validator could: `table/clear` has no operation file (hence the error), the vali
 It also surfaced that `row/get` defaults to a **50-row limit** unless `returnAll` is
 set, which would have silently fed the slip builder a sixth of the slate.
 
+**`Clear Slate` is guarded as of 2026-09-06 — `Model Is Usable` sits in front of it.**
+This was missing for four days after the incident that produced the rule. On 2026-09-02 an
+HTTP 422 during the history fetch left the run failed, `Clear Slate` fired anyway, and a
+143-row slate was wiped with the execution still reporting success. CLAUDE.md § Destructive
+nodes was written that day; the guard itself was only added when `workspace-auditor` found
+the JSON still unprotected — while the workflow was **active on a daily 08:00 cron**.
+
+The guard is an IF between `Build Model` and `Clear Slate`, and all three conditions must
+hold before anything is deleted:
+
+| Condition | Why |
+|---|---|
+| `teams_rated > 0` | never wipe the slate for an empty model |
+| `total_matches >= 200` | a truncated model does not justify deleting a working slate (the model was validated on 1849 matches) |
+| `fetch_errors.length <= 2` | 1-2 misses out of the 10 CSV fetches is normal; 3+ is a systemic failure |
+
+`Build Model` already throws when *no* CSV parses at all (its line 82), so the gap the guard
+closes is **partial** failure — 5 of 10 leagues down produces a usable-looking model object
+that is not actually usable.
+
+**The false branch throws instead of NoOp-ing, deliberately.** CLAUDE.md says false → NoOp,
+and this is the documented exception. Two reasons: an empty output stops the chain here
+anyway (see the note below), so a NoOp would stop silently; and silence is precisely what
+made the original incident invisible until the data was gone. `Skip Clear Slate` raises an
+error naming `teams_rated`, `total_matches` and every fetch error, which makes the run red
+in the execution list. Not deleting is half the fix — being loud is the other half.
+
+The old slate survives a blocked run. Stale rows beat no rows.
+
 **An empty node output stops an n8n chain outright**, and a stopped chain skips the
 report that would explain why. `Clear Slate`, `Split Legs` and `Write Slate` all set
 `alwaysOutputData` for that reason. `deleteRows` returning `[]` when nothing matches

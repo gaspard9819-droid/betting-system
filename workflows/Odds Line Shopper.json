@@ -188,7 +188,8 @@
     },
     {
       "parameters": {
-        "numberInputs": 2
+        "numberInputs": 2,
+        "mode": "append"
       },
       "id": "5717c0de-0000-4000-8000-000000000016",
       "name": "Combine Branches",
