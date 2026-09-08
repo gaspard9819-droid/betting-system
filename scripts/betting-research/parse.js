@@ -21,6 +21,9 @@ function parseCsv(raw, league, season) {
     }
   }
   const hasXg = col['HxG'] !== undefined && col['AxG'] !== undefined;
+  // HC/AC = hazai/vendeg szoglet. Csak szam, odds NINCS a fajlban — a
+  // football-data.co.uk osszes over/under es azsiai oszlopa golra vonatkozik.
+  const hasCorners = col['HC'] !== undefined && col['AC'] !== undefined;
 
   const out = [];
   for (let i = 1; i < lines.length; i++) {
@@ -49,7 +52,15 @@ function parseCsv(raw, league, season) {
       league, season, date: date.toISOString(),
       home, away, hg, ag,
       hxg: null, axg: null,
+      hc: null, ac: null,
     };
+
+    if (hasCorners) {
+      const hcv = Number(f[col['HC']]), acv = Number(f[col['AC']]);
+      // Nem szurunk ki sort, ha hianyzik a szoglet — a gol-backtestek
+      // ugyanezt a parsert hasznaljak es nem szabad meccset veszteniuk.
+      if (Number.isFinite(hcv) && Number.isFinite(acv)) { row.hc = hcv; row.ac = acv; }
+    }
 
     if (hasXg) {
       const hx = Number(f[col['HxG']]), ax = Number(f[col['AxG']]);

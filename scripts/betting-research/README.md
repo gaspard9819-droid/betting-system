@@ -10,10 +10,23 @@ Plain Node, no dependencies. Data comes from football-data.co.uk (free, no key).
 
 ```bash
 mkdir -p data && cd data
+# A ket hosztnev kulon rate-limit savon fut. Amelyik kimerult, 503-at ad
+# Retry-After fejleccel, a masik kozben 200-at — ezert a fallback.
+# Megfigyelve 2026-09-08: www 503 (Retry-After: 205), bare 200 (999/1000 kvota).
+fetch() {  # fetch <url> <kimeneti fajl>
+  for h in www.football-data.co.uk football-data.co.uk; do
+    curl -sf -A "Mozilla/5.0" -o "$2" "https://$h/mmz4281/$1" && return 0
+  done
+  echo "  nem sikerult: $1" >&2; rm -f "$2"; return 1
+}
 for S in 2526 2627; do for L in E0 D1 SP1 I1 F1; do
-  curl -s -o "${L}_${S}.csv" "https://www.football-data.co.uk/mmz4281/$S/$L.csv"
+  fetch "$S/$L.csv" "${L}_${S}.csv"
 done; done
 ```
+
+A `curl -sf` a `-f` miatt hibakoddal tér vissza 503-ra, igy a fallback elsul.
+Enelkul a 489 bajtos HTML hibaoldal `.csv` neven landolna, es a parser ott hasalna el,
+nem a letoltesnel — ez egy debugolasi kort mar elvitt.
 
 Lower divisions use the same pattern with `E1 E2 E3 EC SC0 SC1 D2 SP2 I2 F2 N1 B1 P1 T1 G1`.
 Season codes are `YYZZ` — `2627` is the 2026/27 season.
@@ -49,8 +62,8 @@ Findings that shaped the workflow, so they don't get re-litigated:
   book, 8–10% in lower divisions. Break-even needs an edge larger than the margin.
   Consensus-based selection found *zero* qualifying bets at average-book prices.
 - **Goals are near-perfectly Poisson** (variance/mean = 0.993), which is why there is so
-  little structure left to model. Corners are more over-dispersed (1.214) but the CSVs
-  carry no corner odds, so that is untested rather than ruled out.
+  little structure left to model. Corners are more over-dispersed (1.174 measured over
+  9290 matches) but carry almost no predictable structure either — see "Corners" below.
 - **Line shopping is worth +3.79 percentage points** on identical bets, with a better
   price available in 84% of cases. No forecasting involved.
 
@@ -68,6 +81,56 @@ Watch for two traps that produced false positives during this work:
    Test at `AvgC` if you intend to bet at one ordinary book.
 2. **CLV against a different book's closing line is not CLV.** Comparing `Max` to
    Pinnacle's close showed +13% "CLV" alongside −9.5% actual returns.
+
+## Corners
+
+`corners.js` — the zero-cost pre-screen that closed the corner question. Run it from
+`data/` like the others.
+
+The corner market looked like the one live lead left after the goals work: corners are
+over-dispersed where goals are not, so there was more variance that the market might be
+pricing badly. Testing that properly needs corner odds, which cost money —
+football-data.co.uk carries `HC`/`AC` corner *counts* but no corner odds (every
+over/under and Asian column is goals; confirmed in the official `notes.txt` 2026-09-08).
+Paid sources exist: Footiqo gives one free Premier League season (~380 matches, closing
+corner odds) and sells full history at €49.99; OddAlerts sells opening/closing/peak.
+
+So `corners.js` answers the prior question for free — **is the corner count predictable
+at all**, beating a baseline that uses no team information? If not, there is nothing for
+a market to misprice and no reason to buy odds.
+
+Same method as `backtest.js`: walk-forward ratings (weekly recompute, strictly prior
+matches only), an explicit baseline, and the inverting control. Two differences:
+
+- **Negative binomial, not Poisson.** Corners are over-dispersed (1.174), so a Poisson
+  tail systematically understates the extremes. `nbTailOver()` was verified against a
+  400k-draw Gamma-Poisson simulation — analytic and simulated tails agree to 4 decimals
+  across all four lines.
+- **Shrinkage prior is 1.0, unlike the goal ratings.** The `PRIOR_ATT = 0.92` in
+  `ratings.js` exists because promoted sides underperform at scoring. There is no
+  equivalent effect for corners — weak teams often concede *and* win more of them.
+
+### What it established
+
+**Corners are not predictable enough to bet.** Over 9290 matches (6 leagues, 4 seasons),
+the model beat the league-average baseline by a log-loss margin of **0.0025–0.0048 per
+match** depending on the line. That is real but negligible: a typical corner market
+carries 5–8% margin, and an edge this size does not come close to covering it.
+
+- Over% by line: 62.5% (8.5), 50.9% (9.5), 39.6% (10.5), 29.1% (11.5) — 9.5 sits nearest
+  a coin flip, as expected for the usual main line.
+- **The ranking is not inverted here** — unlike the goal model. The strongest signals beat
+  the baseline by more than the middle half (+0.0080 vs +0.0002 at line 8.5), and the
+  effect grows toward the outer lines (+0.0140 at 11.5 under). The model is directionally
+  right; it is just far too small to pay for the margin.
+- Interesting asymmetry: the **under** signal carries most of the edge at every line. If
+  corners are ever revisited, that is where to look.
+
+**Conclusion: don't buy corner odds data.** The €49.99 was the decision this script
+existed to make, and the answer is no. Note what was *not* tested — whether the market
+prices corners badly. That stays unknown, but it stops mattering: without a forecast that
+beats a no-information baseline by more than the margin, a mispriced market is not
+reachable.
 
 ## Accumulator scripts
 
