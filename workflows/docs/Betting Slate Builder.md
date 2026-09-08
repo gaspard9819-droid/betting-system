@@ -364,3 +364,55 @@ credentials, and it failed with *"Missing required credential"* the moment it ma
 **Before any full-workflow PUT: read the live workflow, keep its `credentials` objects
 and any `__rl` resource-locator values, and merge them into the payload.** Prefer
 `n8n_update_partial_workflow` for single-node edits precisely to avoid this.
+
+## One hostname is a single point of failure — football-data rate-limits per host (fixed 2026-09-08)
+
+Ten consecutive runs failed — eight manual attempts plus the scheduled 08:00 runs on
+09-07 and 09-08 — all with the same `Build Model` error: *"Egyetlen CSV sem dolgozodott
+fel. Hibak: E0 2627: HTTP 503; …"* for all ten league/season pairs. The slate sat on
+09-05 data for three days.
+
+The cause was not an outage. `www.football-data.co.uk` and `football-data.co.uk` are the
+same nginx server but **run on separate rate-limit bands**, and only the `www` one was
+exhausted. Checked side by side at 16:01 UTC:
+
+| | `www` | bare |
+|---|---|---|
+| status | 503 | 200 |
+| `Retry-After` | 348 | — |
+| `X-WS-RateLimit-Remaining` | absent | 999/1000 |
+
+`Config` hardcoded the `www` host into every URL, so all ten downloads shared one point
+of failure. Swapping the hostname would only move the problem — when the bare band
+exhausts, the same failure returns mirrored. So `Config` now emits **both hosts** for
+each league/season (10 items → 20, keyed `league|season`) and `Build Model` groups by
+that key, taking the first usable response. A pair fails only if *every* host failed,
+and the error then names each host with its `Retry-After`.
+
+Note the fallback also covers a 200 that carries an unusable body — a truncated or
+error-page CSV falls through to the next host rather than counting as success.
+
+**The Clear Slate guard held throughout.** All ten failed runs stopped at `Build Model`;
+the destructive node was never reached, and the stale slate survived. This is the same
+shape as the 2026-09-02 incident where an HTTP 422 let a failed run wipe 143 rows — the
+guard added in `57a0b08` is what made the difference.
+
+### Verified
+
+- Isolated logic test, 6 cases: www-down, bare-down, both-down, partial, 200-with-bad-CSV,
+  config passthrough. All as expected, including 10 loud errors when both hosts fail.
+- Live run against the real hosts before deploying: all 10 pairs recovered on the second
+  host, 1898 matches, zero failed pairs.
+- Execution `109` (2026-09-08 16:11 UTC), item counts node by node: `Config` 20 →
+  `Fetch History` 20 → `Build Model` 1 (`total_matches: 1898`, `teams_rated: 110`,
+  `fetch_errors: []`) → `Clear Slate` 145 deleted → `Write Slate` 60 written.
+- Table state after: 60 rows, ids 1244-1303, 12 matches for the 09-11/09-12 round, zero
+  `leg_id` overlap with the pre-run snapshot. The 145 → 60 drop is expected — the old
+  slate covered 09-05 fixtures that have since been played.
+- Pre-run snapshot of all 145 rows kept at
+  `scripts/betting-research/snapshots/bet_slate_2026-09-08T16-10Z.json`. To roll back,
+  re-insert those rows without `id`/`createdAt`/`updatedAt`.
+
+The same `curl -s` trap bit the local research scripts on the same day: without `-f`,
+curl writes the 489-byte HTML error page as a `.csv` and exits 0, so the failure only
+surfaces at the parser. See `scripts/betting-research/README.md`.

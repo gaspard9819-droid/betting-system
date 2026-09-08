@@ -29,7 +29,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        184,
+        192,
         -144
       ]
     },
@@ -45,7 +45,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1304,
+        1312,
         -144
       ]
     },
@@ -61,7 +61,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1976,
+        1984,
         -144
       ]
     },
@@ -77,7 +77,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        2872,
+        2880,
         -144
       ]
     },
@@ -114,7 +114,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Beallitasok es a letoltendo szezonok.\n//\n// A szezonkod YYZZ: a 2026/27-es szezon '2627'. Ket szezont toltunk be,\n// mert a folyo szezon elejen meg alig van meccs (a modell kulonben\n// 3 meccsbol probalna csapaterosseget becsulni).\n\nconst NOW = new Date();\nconst y = NOW.getUTCFullYear(), mo = NOW.getUTCMonth() + 1;\n// a szezon augusztusban indul: januar-julius kozott meg az elozo evi szezonban vagyunk\nconst startYear = mo >= 8 ? y : y - 1;\nconst sc = yr => String(yr % 100).padStart(2, '0') + String((yr + 1) % 100).padStart(2, '0');\nconst SEASONS = [sc(startYear), sc(startYear - 1)];\n\nconst LEAGUES = [\n  { code: 'E0',  api: 'soccer_epl',                 name: 'Premier League' },\n  { code: 'SP1', api: 'soccer_spain_la_liga',       name: 'La Liga' },\n  { code: 'D1',  api: 'soccer_germany_bundesliga',  name: 'Bundesliga' },\n  { code: 'I1',  api: 'soccer_italy_serie_a',       name: 'Serie A' },\n  { code: 'F1',  api: 'soccer_france_ligue_one',    name: 'Ligue 1' },\n];\n\nconst CONFIG = {\n  minOdds: 1.30,          // ez alatt nem kerul labkent a slate-re\n  maxOdds: 15.0,\n  maxHoursAhead: 96,      // ennyi oran belul kezdodo meccsek\n  // A Tippmixpro nincs a The Odds API-ban (magyar allami monopol konyv), ezert\n  // a piaci atlagbol becsuljuk. Meres: egy atlagos konyv 3.15%-kal kevesebbet\n  // fizet a Pinnacle-nel, egy monopol konyv jellemzoen ennel is tobbet vag.\n  // Par valos Tippmixpro odds osszevetese utan pontositsd ezt a szamot.\n  tippmixHaircut: 0.045,\n};\n\nconst out = [];\nfor (const lg of LEAGUES) {\n  for (const s of SEASONS) {\n    out.push({ json: {\n      url: `https://www.football-data.co.uk/mmz4281/${s}/${lg.code}.csv`,\n      league: lg.code, api: lg.api, league_name: lg.name, season: s,\n      leagues: LEAGUES, config: CONFIG,\n    }});\n  }\n}\nreturn out;"
+        "jsCode": "// Beallitasok es a letoltendo szezonok.\n//\n// A szezonkod YYZZ: a 2026/27-es szezon '2627'. Ket szezont toltunk be,\n// mert a folyo szezon elejen meg alig van meccs (a modell kulonben\n// 3 meccsbol probalna csapaterosseget becsulni).\n\nconst NOW = new Date();\nconst y = NOW.getUTCFullYear(), mo = NOW.getUTCMonth() + 1;\n// a szezon augusztusban indul: januar-julius kozott meg az elozo evi szezonban vagyunk\nconst startYear = mo >= 8 ? y : y - 1;\nconst sc = yr => String(yr % 100).padStart(2, '0') + String((yr + 1) % 100).padStart(2, '0');\nconst SEASONS = [sc(startYear), sc(startYear - 1)];\n\nconst LEAGUES = [\n  { code: 'E0',  api: 'soccer_epl',                 name: 'Premier League' },\n  { code: 'SP1', api: 'soccer_spain_la_liga',       name: 'La Liga' },\n  { code: 'D1',  api: 'soccer_germany_bundesliga',  name: 'Bundesliga' },\n  { code: 'I1',  api: 'soccer_italy_serie_a',       name: 'Serie A' },\n  { code: 'F1',  api: 'soccer_france_ligue_one',    name: 'Ligue 1' },\n];\n\nconst CONFIG = {\n  minOdds: 1.30,          // ez alatt nem kerul labkent a slate-re\n  maxOdds: 15.0,\n  maxHoursAhead: 96,      // ennyi oran belul kezdodo meccsek\n  // A Tippmixpro nincs a The Odds API-ban (magyar allami monopol konyv), ezert\n  // a piaci atlagbol becsuljuk. Meres: egy atlagos konyv 3.15%-kal kevesebbet\n  // fizet a Pinnacle-nel, egy monopol konyv jellemzoen ennel is tobbet vag.\n  // Par valos Tippmixpro odds osszevetese utan pontositsd ezt a szamot.\n  tippmixHaircut: 0.045,\n};\n\n// A ket hosztnev KULON rate-limit savon fut: amelyik kimerult, 503-at ad\n// Retry-After fejleccel, mikozben a masik 200-at szolgal ki. 2026-09-08-an\n// a www 503-at adott (Retry-After: 348) es emiatt mind a 10 letoltes elbukott,\n// ugyanabban az oraban, amikor a www nelkuli hoszt 999/1000 kvotaval ment.\n// Ezert mindket hosztra kerul sor; a Build Model liga+szezon szerint\n// csoportosit es az elso 200-as valaszt hasznalja.\nconst HOSTS = ['www.football-data.co.uk', 'football-data.co.uk'];\n\nconst out = [];\nfor (const lg of LEAGUES) {\n  for (const s of SEASONS) {\n    for (const host of HOSTS) {\n      out.push({ json: {\n        url: `https://${host}/mmz4281/${s}/${lg.code}.csv`,\n        host,\n        // liga+szezon parok azonositoja - a Build Model ez alapjan valogat\n        key: `${lg.code}|${s}`,\n        league: lg.code, api: lg.api, league_name: lg.name, season: s,\n        leagues: LEAGUES, config: CONFIG,\n      }});\n    }\n  }\n}\nreturn out;"
       },
       "id": "5717c0de-0003-4000-8000-000000000008",
       "name": "Config",
@@ -159,7 +159,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// CSV feldolgozas + Dixon-Coles csapaterossegek.\n// Ez a kod lokalisan tesztelve lett 1849 meccsen mielott ide kerult.\n\nconst XI = 0.0065;      // idobeli sulyozas: ~107 napos felezes\nconst SHRINK_K = 12;    // ennyi sulyozott meccsnel 50% a sajat adat\nconst XG_BLEND = 0.5;   // xG es valos gol keverese\nconst PRIOR_ATT = 0.92; // ujoncok atlag alatt teljesitenek\nconst PRIOR_DEF = 1.08;\n\nfunction parseCsv(raw, league) {\n  const text = String(raw).replace(/^\\uFEFF/, '');\n  const lines = text.split(/\\r?\\n/).filter(l => l.trim().length > 0);\n  if (lines.length < 2) return [];\n  // fejlecnev szerinti indexeles: az oszlopsorrend szezononkent valtozik\n  const head = lines[0].split(',').map(h => h.trim());\n  const col = {};\n  head.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });\n  for (const n of ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG']) {\n    if (col[n] === undefined) return [];\n  }\n  const hasXg = col['HxG'] !== undefined && col['AxG'] !== undefined;\n  const out = [];\n  for (let i = 1; i < lines.length; i++) {\n    const f = lines[i].split(',');\n    const home = (f[col['HomeTeam']] || '').trim();\n    const away = (f[col['AwayTeam']] || '').trim();\n    const fthg = f[col['FTHG']], ftag = f[col['FTAG']];\n    if (!home || !away || fthg === undefined || fthg === '' || ftag === '') continue;\n    const hg = Number(fthg), ag = Number(ftag);\n    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;\n    // dd/mm/yyyy — NEM ISO, kezzel kell bontani\n    const m = (f[col['Date']] || '').trim().match(/^(\\d{2})\\/(\\d{2})\\/(\\d{2}|\\d{4})$/);\n    if (!m) continue;\n    const yr = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);\n    const date = new Date(Date.UTC(yr, Number(m[2]) - 1, Number(m[1])));\n    if (isNaN(date.getTime())) continue;\n    const row = { league, date: date.toISOString(), home, away, hg, ag, hxg: null, axg: null };\n    if (hasXg) {\n      const hx = Number(f[col['HxG']]), ax = Number(f[col['AxG']]);\n      if (Number.isFinite(hx) && Number.isFinite(ax)) { row.hxg = hx; row.axg = ax; }\n    }\n    out.push(row);\n  }\n  return out;\n}\n\n// --- osszes CSV beolvasasa ---\nlet matches = [];\nconst fetchErrors = [];\nlet config = null, leagues = null;\n\n// A HTTP node NEM adja tovabb a bemeneti mezoket (csak data/headers/statusCode),\n// ezert a liga/szezon a Config kimenetebol jon, index szerint parositva.\n// Enelkul minden liga \"undefined\" lett es a lanc csendben elhalt.\nconst cfgItems = $('Config').all().map(i => i.json);\nif (!cfgItems.length) throw new Error('A Config node nem adott itemet.');\n\nconst inputs = $input.all();\nfor (let idx = 0; idx < inputs.length; idx++) {\n  const item = inputs[idx];\n  const j = item.json;\n  const src = cfgItems[idx] || {};\n  const jLeague = src.league;\n  const jSeason = src.season;\n  if (!config && src.config) { config = src.config; leagues = src.leagues; }\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j.data;\n  if (status && status !== 200) {\n    fetchErrors.push(`${jLeague || '?'} ${jSeason || ''}: HTTP ${status}`);\n    continue;\n  }\n  if (typeof body !== 'string' || body.length < 100) {\n    fetchErrors.push(`${jLeague || '?'} ${jSeason || ''}: ures valasz`);\n    continue;\n  }\n  const rows = parseCsv(body, jLeague);\n  if (!rows.length) fetchErrors.push(`${jLeague} ${jSeason}: 0 meccs`);\n  matches = matches.concat(rows);\n}\n\nif (!config) { config = {}; leagues = []; }\nif (!matches.length) {\n  throw new Error('Egyetlen CSV sem dolgozodott fel. Hibak: ' + (fetchErrors.join('; ') || 'nincs'));\n}\nif (matches.some(m => !m.league || m.league === 'undefined')) {\n  throw new Error('Van liga nelkuli meccs - a Config parositas elromlott.');\n}\n\n// --- Dixon-Coles erossegek ---\nconst now = new Date();\nconst byLeague = {};\nfor (const m of matches) (byLeague[m.league] = byLeague[m.league] || []).push(m);\n\nconst ratings = {};\nconst leagueMeta = {};\n\nfor (const [league, rows] of Object.entries(byLeague)) {\n  const enriched = rows.map(m => {\n    const days = Math.max(0, (now - new Date(m.date)) / 86400000);\n    const w = Math.exp(-XI * days);\n    let hVal = m.hg, aVal = m.ag;\n    if (m.hxg !== null && m.axg !== null) {\n      hVal = XG_BLEND * m.hxg + (1 - XG_BLEND) * m.hg;\n      aVal = XG_BLEND * m.axg + (1 - XG_BLEND) * m.ag;\n    }\n    return { ...m, w, hVal, aVal };\n  }).filter(m => m.w > 1e-6);\n  if (!enriched.length) continue;\n\n  let sw = 0, shg = 0, sag = 0;\n  for (const m of enriched) { sw += m.w; shg += m.w * m.hVal; sag += m.w * m.aVal; }\n  const avgHome = shg / sw, avgAway = sag / sw;\n  const leagueAvg = (avgHome + avgAway) / 2;\n  const homeAdv = avgAway > 0 ? avgHome / avgAway : 1.3;\n  leagueMeta[league] = { leagueAvg, homeAdv, matches: enriched.length };\n\n  const t = {};\n  const get = n => (t[n] = t[n] || { sf: 0, sa: 0, w: 0, games: 0 });\n  for (const m of enriched) {\n    const H = get(m.home), A = get(m.away);\n    H.sf += m.w * (m.hVal / homeAdv); H.sa += m.w * m.aVal; H.w += m.w; H.games++;\n    A.sf += m.w * m.aVal; A.sa += m.w * (m.hVal / homeAdv); A.w += m.w; A.games++;\n  }\n  for (const [team, s] of Object.entries(t)) {\n    const k = s.w / (s.w + SHRINK_K);\n    ratings[league + '|' + team] = {\n      team, league,\n      attack: k * ((s.sf / s.w) / leagueAvg) + (1 - k) * PRIOR_ATT,\n      defence: k * ((s.sa / s.w) / leagueAvg) + (1 - k) * PRIOR_DEF,\n      matches: s.games,\n    };\n  }\n}\n\nreturn [{ json: {\n  ratings, leagueMeta, config, leagues,\n  total_matches: matches.length,\n  fetch_errors: fetchErrors,\n  teams_rated: Object.keys(ratings).length,\n}}];"
+        "jsCode": "// CSV feldolgozas + Dixon-Coles csapaterossegek.\n// Ez a kod lokalisan tesztelve lett 1849 meccsen mielott ide kerult.\n\nconst XI = 0.0065;      // idobeli sulyozas: ~107 napos felezes\nconst SHRINK_K = 12;    // ennyi sulyozott meccsnel 50% a sajat adat\nconst XG_BLEND = 0.5;   // xG es valos gol keverese\nconst PRIOR_ATT = 0.92; // ujoncok atlag alatt teljesitenek\nconst PRIOR_DEF = 1.08;\n\nfunction parseCsv(raw, league) {\n  const text = String(raw).replace(/^\\uFEFF/, '');\n  const lines = text.split(/\\r?\\n/).filter(l => l.trim().length > 0);\n  if (lines.length < 2) return [];\n  // fejlecnev szerinti indexeles: az oszlopsorrend szezononkent valtozik\n  const head = lines[0].split(',').map(h => h.trim());\n  const col = {};\n  head.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });\n  for (const n of ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG']) {\n    if (col[n] === undefined) return [];\n  }\n  const hasXg = col['HxG'] !== undefined && col['AxG'] !== undefined;\n  const out = [];\n  for (let i = 1; i < lines.length; i++) {\n    const f = lines[i].split(',');\n    const home = (f[col['HomeTeam']] || '').trim();\n    const away = (f[col['AwayTeam']] || '').trim();\n    const fthg = f[col['FTHG']], ftag = f[col['FTAG']];\n    if (!home || !away || fthg === undefined || fthg === '' || ftag === '') continue;\n    const hg = Number(fthg), ag = Number(ftag);\n    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;\n    // dd/mm/yyyy — NEM ISO, kezzel kell bontani\n    const m = (f[col['Date']] || '').trim().match(/^(\\d{2})\\/(\\d{2})\\/(\\d{2}|\\d{4})$/);\n    if (!m) continue;\n    const yr = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);\n    const date = new Date(Date.UTC(yr, Number(m[2]) - 1, Number(m[1])));\n    if (isNaN(date.getTime())) continue;\n    const row = { league, date: date.toISOString(), home, away, hg, ag, hxg: null, axg: null };\n    if (hasXg) {\n      const hx = Number(f[col['HxG']]), ax = Number(f[col['AxG']]);\n      if (Number.isFinite(hx) && Number.isFinite(ax)) { row.hxg = hx; row.axg = ax; }\n    }\n    out.push(row);\n  }\n  return out;\n}\n\n// --- osszes CSV beolvasasa ---\nlet matches = [];\nconst fetchErrors = [];\nlet config = null, leagues = null;\n\n// A HTTP node NEM adja tovabb a bemeneti mezoket (csak data/headers/statusCode),\n// ezert a liga/szezon a Config kimenetebol jon, index szerint parositva.\n// Enelkul minden liga \"undefined\" lett es a lanc csendben elhalt.\nconst cfgItems = $('Config').all().map(i => i.json);\nif (!cfgItems.length) throw new Error('A Config node nem adott itemet.');\n\n// A Config minden liga+szezon parra TOBB hosztot ad ki (rate-limit fallback),\n// ezert kulcs szerint csoportositunk es paronkent az elso hasznalhato\n// valaszt vesszuk. Egy par csak akkor szamit hibasnak, ha MINDEN hosztja\n// elbukott - kulonben egy 503 az egyik hoszton nem allitja meg a futast.\nconst inputs = $input.all();\nconst groups = new Map();\n\nfor (let idx = 0; idx < inputs.length; idx++) {\n  const j = inputs[idx].json;\n  const src = cfgItems[idx] || {};\n  if (!config && src.config) { config = src.config; leagues = src.leagues; }\n  const key = src.key || `${src.league || '?'}|${src.season || ''}`;\n  if (!groups.has(key)) {\n    groups.set(key, { league: src.league, season: src.season, ok: null, errs: [] });\n  }\n  const g = groups.get(key);\n  if (g.ok) continue;   // ennel a parnal mar van jo valasz\n\n  const host = src.host || '?';\n  const status = j.statusCode;\n  const body = j.body !== undefined ? j.body : j.data;\n\n  if (status && status !== 200) {\n    // a Retry-After elarulja, hogy rate limit-e vagy valodi kieses\n    const ra = j.headers && j.headers['retry-after'];\n    g.errs.push(`${host}: HTTP ${status}${ra ? ` (Retry-After: ${ra})` : ''}`);\n    continue;\n  }\n  if (typeof body !== 'string' || body.length < 100) {\n    g.errs.push(`${host}: ures valasz`);\n    continue;\n  }\n  const rows = parseCsv(body, g.league);\n  if (!rows.length) { g.errs.push(`${host}: 0 meccs`); continue; }\n  g.ok = rows;\n}\n\nfor (const [key, g] of groups) {\n  if (g.ok) { matches = matches.concat(g.ok); continue; }\n  fetchErrors.push(`${key.replace('|', ' ')}: ${g.errs.join(', ') || 'nincs valasz'}`);\n}\n\nif (!config) { config = {}; leagues = []; }\nif (!matches.length) {\n  throw new Error('Egyetlen CSV sem dolgozodott fel. Hibak: ' + (fetchErrors.join('; ') || 'nincs'));\n}\nif (matches.some(m => !m.league || m.league === 'undefined')) {\n  throw new Error('Van liga nelkuli meccs - a Config parositas elromlott.');\n}\n\n// --- Dixon-Coles erossegek ---\nconst now = new Date();\nconst byLeague = {};\nfor (const m of matches) (byLeague[m.league] = byLeague[m.league] || []).push(m);\n\nconst ratings = {};\nconst leagueMeta = {};\n\nfor (const [league, rows] of Object.entries(byLeague)) {\n  const enriched = rows.map(m => {\n    const days = Math.max(0, (now - new Date(m.date)) / 86400000);\n    const w = Math.exp(-XI * days);\n    let hVal = m.hg, aVal = m.ag;\n    if (m.hxg !== null && m.axg !== null) {\n      hVal = XG_BLEND * m.hxg + (1 - XG_BLEND) * m.hg;\n      aVal = XG_BLEND * m.axg + (1 - XG_BLEND) * m.ag;\n    }\n    return { ...m, w, hVal, aVal };\n  }).filter(m => m.w > 1e-6);\n  if (!enriched.length) continue;\n\n  let sw = 0, shg = 0, sag = 0;\n  for (const m of enriched) { sw += m.w; shg += m.w * m.hVal; sag += m.w * m.aVal; }\n  const avgHome = shg / sw, avgAway = sag / sw;\n  const leagueAvg = (avgHome + avgAway) / 2;\n  const homeAdv = avgAway > 0 ? avgHome / avgAway : 1.3;\n  leagueMeta[league] = { leagueAvg, homeAdv, matches: enriched.length };\n\n  const t = {};\n  const get = n => (t[n] = t[n] || { sf: 0, sa: 0, w: 0, games: 0 });\n  for (const m of enriched) {\n    const H = get(m.home), A = get(m.away);\n    H.sf += m.w * (m.hVal / homeAdv); H.sa += m.w * m.aVal; H.w += m.w; H.games++;\n    A.sf += m.w * m.aVal; A.sa += m.w * (m.hVal / homeAdv); A.w += m.w; A.games++;\n  }\n  for (const [team, s] of Object.entries(t)) {\n    const k = s.w / (s.w + SHRINK_K);\n    ratings[league + '|' + team] = {\n      team, league,\n      attack: k * ((s.sf / s.w) / leagueAvg) + (1 - k) * PRIOR_ATT,\n      defence: k * ((s.sa / s.w) / leagueAvg) + (1 - k) * PRIOR_DEF,\n      matches: s.games,\n    };\n  }\n}\n\nreturn [{ json: {\n  ratings, leagueMeta, config, leagues,\n  total_matches: matches.length,\n  fetch_errors: fetchErrors,\n  teams_rated: Object.keys(ratings).length,\n}}];"
       },
       "id": "5717c0de-0003-4000-8000-000000000010",
       "name": "Build Model",
@@ -167,7 +167,7 @@
       "typeVersion": 2,
       "position": [
         672,
-        352
+        336
       ]
     },
     {
@@ -289,8 +289,7 @@
         "options": {
           "batching": {
             "batch": {
-              "batchSize": 3,
-              "batchInterval": 1000
+              "batchSize": 3
             }
           },
           "response": {
@@ -313,6 +312,12 @@
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 2000,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "QYva6BrsTs0Yl3Dj",
+          "name": "The odds api"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -429,7 +434,13 @@
       "position": [
         3360,
         128
-      ]
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "dyNNL1J6Pq1gEHW5",
+          "name": "Anthropic account"
+        }
+      }
     },
     {
       "parameters": {
@@ -469,10 +480,7 @@
       ]
     },
     {
-      "parameters": {
-        "mode": "append",
-        "numberInputs": 2
-      },
+      "parameters": {},
       "id": "5717c0de-0003-4000-8000-000000000024",
       "name": "Combine News Branches",
       "type": "n8n-nodes-base.merge",
@@ -752,6 +760,12 @@
       "maxTries": 2,
       "waitBetweenTries": 2000,
       "webhookId": "4ade7253-5268-453f-8ee1-b41c00883719",
+      "credentials": {
+        "discordBotApi": {
+          "id": "v4YqkLH1dXfaSayB",
+          "name": "Discord Bot account"
+        }
+      },
       "onError": "continueRegularOutput"
     },
     {
@@ -816,7 +830,7 @@
       "typeVersion": 2,
       "position": [
         1120,
-        520
+        528
       ],
       "notes": "False branch of Model Is Usable. Throws so the failed run is red and visible rather than silently skipping. The slate keeps yesterday's rows."
     },
@@ -832,7 +846,7 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        856,
+        864,
         -144
       ]
     }
