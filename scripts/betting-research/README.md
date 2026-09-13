@@ -233,6 +233,7 @@ the model is measured against it, not the other way round.
 | `scorer_ab.js` | The whole `buildSlip` logic on real day pools, `model_prob` scorer vs market-probability scorer, leg-level realized ROI. |
 | `scorer_switch_test.js` | 66 checks on the **deployed** `Build Response` node code after the switch to market probability. Run it from this directory. |
 | `tippmix_direct.js` | **The one that fits the shipped curve.** Pairs the live slate run's own `market_avg_odds` with real Tippmixpro prices — no reference correction, no estimate. Extend this one with new prices. |
+| `timing.js` | Does betting earlier pay? Opening vs closing price on the legs the builder actually picks, per market and odds band, with a paired significance test. Run from `data/`. |
 | `tippmix_calib.js` | The withdrawn first attempt: matches prices against `fixtures.csv` averages. Kept because its overround and book-set findings stand. Run from `data/`. |
 | `tippmix_calib_check.js` | The three things ruled out before believing that calibration: opening-vs-closing timing, book-set differences, sample representativeness. Run from `data/`. |
 | `tippmix_refit.js` | The reference correction that turned out to be too small, plus sloped-vs-flat comparison. Run from `data/`. |
@@ -294,8 +295,30 @@ the model is measured against it, not the other way round.
   product **9.16** → quoted **5.25**, i.e. 57.3% of the product, a **42.7% deduction**
   against a 1.55× correlation gain. Net **−21.9%** versus betting the legs separately.
   The `usedMatches` one-leg-per-match rule stays, now measured rather than assumed.
-- **No timing edge**: opening vs closing average prices differ by 0.4–0.6pp ROI at ≤4.0
-  in favour of opening, the other way above it. Not a strategy.
+- **Timing: betting early is worth about +0.40pp per leg, and it is real.** The first pass
+  called this "not a strategy" from a blind-betting view. Re-measured 2026-09-13 on the
+  legs the builder *actually picks* (`timing.js`), it survives: paired test over 18653
+  legs in the 1.3–2.5 tippmix band, **+0.403pp, t = 7.55**, positive in all five seasons.
+  Paired means the same leg at two prices with the same outcome, which is far more
+  sensitive than comparing two ROIs.
+  **The mechanism is odds-dependent drift, not a general rule.** Short-odds prices
+  *decay* toward kickoff as money arrives on favourites, long-odds prices improve:
+
+  | band | 1X2 close/open | O/U close/open |
+  |---|---|---|
+  | 1.0–1.4 | 99.20% | 97.80% |
+  | 1.4–1.8 | 99.56% | 98.67% |
+  | 1.8–2.2 | 99.90% | 100.59% |
+  | 2.2–3.0 | 100.37% | 103.03% |
+  | 5.0+ | 103.24% | — |
+
+  The builder picks short legs, so early wins *for it*. Anyone betting long legs should
+  wait instead. Size: ~8 Ft on a 1000 Ft two-legger, ~800 Ft over 100 slips — real but
+  small, and smaller than the 2.3% price-estimation error, so it does not justify
+  changing behaviour on its own.
+  **Caveat:** this measures the *market average*, not Tippmixpro. A monopoly book may
+  move more slowly, in which case the effect is smaller or absent there. Testing that
+  needs the same selection priced twice on the actual site.
 - **Lowering `minOdds` below 1.30 gains nothing**: 1.1–1.3 home legs cost the same as
   1.3–1.6 (−1.4% fair, −0.5% realized).
 
