@@ -13,7 +13,8 @@ const fs = require('fs');
 const path = require('path');
 
 const WF = path.join(__dirname, '..', '..', 'workflows', 'Betting Slate Builder.json');
-const PTS = path.join(__dirname, 'data', 'tippmix', 'calibration_points_2026-09-13.json');
+// A fixtures-alapu pontok maradnak hivatkozaskent, de a teszt mar a
+// kozvetlen parokbol dolgozik (lasd a 3. szakaszt).
 
 let pass = 0, fail = 0;
 const check = (name, cond, extra) => {
@@ -40,29 +41,51 @@ check('h2h es totals eltero erteket ad @2.00-nal',
   `h2h ${tippmixRatio(2.0, 'h2h').toFixed(4)} vs totals ${tippmixRatio(2.0, 'totals').toFixed(4)}`);
 check('a hivas helyen at is adjuk a piacot', /tippmixRatio\(d\.avg\[k\], market\)/.test(code));
 
-console.log('\n=== 2. A KET PIAC ELLENTETES IRANYBA DOL ===');
+console.log('\n=== 2. A LEJTES IRANYA ===');
 const h2hSlope = tippmixRatio(4.0, 'h2h') - tippmixRatio(1.5, 'h2h');
 const ouSlope = tippmixRatio(3.0, 'totals') - tippmixRatio(1.5, 'totals');
 check('1X2 lejt (hosszu oddson kevesebbet fizet)', h2hSlope < 0, `valtozas ${f2(h2hSlope)}pp`);
-check('O/U emelkedik (hosszu oddson tobbet fizet)', ouSlope > 0, `valtozas ${f2(ouSlope)}pp`);
+// Az O/U-n a lejtes NEM szignifikans (t=-1.86, n=18), es a korabbi,
+// football-data elleni meres ELLENTETES elojelut adott ugyanerre a piacra.
+// Ket ellentmondo gyenge jel helyett a lapos becsles az oszinte valasz.
+check('O/U lapos (a lejtes nem szignifikans, ezert nem illesztunk)',
+  Math.abs(ouSlope) < 0.001, `valtozas ${f2(ouSlope)}pp`);
 
-console.log('\n=== 3. ILLESZKEDES A MERT ADATOKRA ===');
-const pts = JSON.parse(fs.readFileSync(PTS, 'utf8'));
-// A meres a football-data atlaga ellen keszult; a gorbe a slate referenciajara
-// szol. A korrekcio ugyanaz, amit a tippmix_refit.js hasznalt.
-const REF = { h2h: 1.0130, ou: 1.0048 };
+console.log('\n=== 3. ILLESZKEDES A KOZVETLENUL MERT ADATOKRA ===');
+// FONTOS: a slate SAJAT referenciajan mert parokat hasznaljuk, nem a
+// football-data elleni meresot. A tippmixRatio a market_avg_odds mezore hat,
+// tehat azon kell mernie. A fixtures-alapu meres egy BECSULT
+// referencia-korrekcion allt (1.30%), a valodi kulonbseg ~3.4% - ezert lett
+// 1.9 szazalekponttal felulbecslo. Lasd a Generate Legs fejlecet.
+const DIRECT = path.join(__dirname, 'data', 'tippmix', 'slate_pairs_2026-09-13.json');
+const direct = JSON.parse(fs.readFileSync(DIRECT, 'utf8'));
 const oldRatio = o => 1.0469 - 0.01814 * Math.min(6.0, Math.max(1.3, o));
-for (const [nm, mk, wfMarket] of [['1X2', 'h2h', 'h2h'], ['O/U', 'ou', 'totals']]) {
-  const rows = pts.filter(p => p.market === mk).map(p => ({ o: p.market_avg, r: p.ratio / REF[mk] }));
-  const resNew = rows.map(x => x.r - tippmixRatio(x.o, wfMarket));
-  const resOld = rows.map(x => x.r - oldRatio(x.o));
-  const rmse = a => Math.sqrt(a.reduce((s, e) => s + e * e, 0) / a.length);
-  console.log(`  ${nm}: n=${rows.length}  uj RMSE ${f2(rmse(resNew))}pp (torzitas ${f2(mean(resNew))}pp)   regi RMSE ${f2(rmse(resOld))}pp (torzitas ${f2(mean(resOld))}pp)`);
-  check(`${nm}: az uj gorbe jobban illeszkedik a reginel`, rmse(resNew) < rmse(resOld),
-    `uj ${f2(rmse(resNew))} vs regi ${f2(rmse(resOld))}`);
-  check(`${nm}: az uj gorbe torzitasa 1pp alatt`, Math.abs(mean(resNew)) < 0.01, `${f2(mean(resNew))}pp`);
+const fixturesRatio = (o, mk) => mk === 'totals'
+  ? 0.9302 + 0.04168 * Math.min(3.2, Math.max(1.3, o))
+  : 1.0322 - 0.00629 * Math.min(12.0, Math.max(1.1, o));
+const rmse = a => Math.sqrt(a.reduce((s, e) => s + e * e, 0) / a.length);
+for (const [nm, mk] of [['1X2', 'h2h'], ['O/U', 'totals']]) {
+  const rows = direct.filter(p => p.market === mk);
+  const rNew = rows.map(x => x.ratio - tippmixRatio(x.market_avg, mk));
+  const rOld = rows.map(x => x.ratio - oldRatio(x.market_avg));
+  const rFix = rows.map(x => x.ratio - fixturesRatio(x.market_avg, mk));
+  console.log(`  ${nm}: n=${rows.length}   telepitett RMSE ${f2(rmse(rNew))}pp (torzitas ${f2(mean(rNew))}pp)`);
+  console.log(`       regi ${f2(rmse(rOld))}pp (${f2(mean(rOld))}pp)   elvetett fixtures-alapu ${f2(rmse(rFix))}pp (${f2(mean(rFix))}pp)`);
+  check(`${nm}: jobban illeszkedik az elvetett fixtures-alapunal`, rmse(rNew) < rmse(rFix), `${f2(rmse(rNew))} vs ${f2(rmse(rFix))}`);
+  // TORZITAS, nem RMSE a mero. Az O/U-n a regi gorbe RMSE-je hajszallal jobb
+  // (2.86 vs 2.96pp), de -1.00pp-tal RENDSZERESEN alabecsul, mig a lapos
+  // becsles torzitatlan. Egy rendszeres eltolodas minden szelvenyt ugyanabba
+  // az iranyba visz, a szorodas nem - ezert a torzitas a fontosabb.
+  check(`${nm}: torzitasa 1pp alatt`, Math.abs(mean(rNew)) < 0.01, `${f2(mean(rNew))}pp`);
+  check(`${nm}: torzitasa kisebb a reginel`, Math.abs(mean(rNew)) <= Math.abs(mean(rOld)),
+    `uj ${f2(mean(rNew))}pp vs regi ${f2(mean(rOld))}pp`);
 }
-
+// Az ARBAN mert pontossag - ez az, ami a felhasznalonak szamit.
+const priceErr = fn => mean(direct.map(p => Math.abs(p.market_avg * fn(p.market_avg, p.market) / p.real - 1)));
+console.log(`  ar-pontossag (atlag abs hiba): telepitett ${f2(priceErr(tippmixRatio))}%   regi ${f2(priceErr(oldRatio))}%   fixtures ${f2(priceErr(fixturesRatio))}%`);
+check('a telepitett gorbe a legpontosabb arban is',
+  priceErr(tippmixRatio) < priceErr(oldRatio) && priceErr(tippmixRatio) < priceErr(fixturesRatio));
+check('az atlagos ar-hiba 3% alatt', priceErr(tippmixRatio) < 0.03, f2(priceErr(tippmixRatio)) + '%');
 console.log('\n=== 4. LEVAGAS - NINCS EXTRAPOLACIO ===');
 check('1X2 lapos 1.1 alatt', tippmixRatio(1.01, 'h2h') === tippmixRatio(1.1, 'h2h'));
 check('1X2 lapos 12.0 felett', tippmixRatio(50, 'h2h') === tippmixRatio(12.0, 'h2h'));
@@ -85,14 +108,14 @@ check('minden arany 0.80-1.15 kozott, minden ar > 1.0', bad.length === 0, bad.sl
 check('ismeretlen piac az 1X2 gorbet kapja (biztonsagos alap)',
   tippmixRatio(2.5, 'btts') === tippmixRatio(2.5, 'h2h'));
 
-console.log('\n=== 6. A BECSULT AR A VALOS TIPPMIX ARHOZ KEPEST ===');
+console.log('\n=== 6. A BECSULT AR A VALOS TIPPMIX ARHOZ KEPEST, SAVONKENT ===');
+console.log('  A slate sajat referenciajan mert 45 paron - nincs korrekcio, nincs becsles.');
 console.log('  piac   sav          n    becsult/valos    (100% = tokeletes)');
-for (const [nm, mk, wfMarket] of [['1X2', 'h2h', 'h2h'], ['O/U', 'ou', 'totals']]) {
-  for (const [lo, hi] of [[1.0, 1.6], [1.6, 2.5], [2.5, 4.0], [4.0, 100]]) {
-    const s = pts.filter(p => p.market === mk && p.market_avg >= lo && p.market_avg < hi);
-    if (s.length < 3) continue;
-    // becsult ar a slate referenciajaval: market_avg * REF * ratio
-    const est = mean(s.map(p => p.market_avg * REF[mk] * tippmixRatio(p.market_avg, wfMarket) / p.tippmix));
+for (const [nm, mk] of [['1X2', 'h2h'], ['O/U', 'totals']]) {
+  for (const [lo, hi] of [[1.0, 1.8], [1.8, 2.8], [2.8, 4.0], [4.0, 100]]) {
+    const s = direct.filter(p => p.market === mk && p.market_avg >= lo && p.market_avg < hi);
+    if (s.length < 2) continue;
+    const est = mean(s.map(p => p.market_avg * tippmixRatio(p.market_avg, mk) / p.real));
     console.log(`  ${nm.padEnd(6)} ${(lo + '-' + (hi > 90 ? '' : hi)).padEnd(12)} ${String(s.length).padStart(3)}     ${f2(est).padStart(6)}%`);
     check(`${nm} ${lo}-${hi}: a becsult ar 5%-on belul`, Math.abs(est - 1) < 0.05, f2(est) + '%');
   }

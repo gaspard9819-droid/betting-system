@@ -1,0 +1,452 @@
+[
+ {
+  "match": "Leeds United vs Newcastle United",
+  "tippmix_source": "Leeds-Newcastle",
+  "league": "Premier League",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 2.3,
+  "real": 2.36,
+  "ratio": 1.0261
+ },
+ {
+  "match": "Leeds United vs Newcastle United",
+  "tippmix_source": "Leeds-Newcastle",
+  "league": "Premier League",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 3.5,
+  "real": 3.6,
+  "ratio": 1.0286
+ },
+ {
+  "match": "Leeds United vs Newcastle United",
+  "tippmix_source": "Leeds-Newcastle",
+  "league": "Premier League",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 2.95,
+  "real": 2.9,
+  "ratio": 0.9831
+ },
+ {
+  "match": "Leeds United vs Newcastle United",
+  "tippmix_source": "Leeds-Newcastle",
+  "league": "Premier League",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.76,
+  "real": 1.81,
+  "ratio": 1.0284
+ },
+ {
+  "match": "Leeds United vs Newcastle United",
+  "tippmix_source": "Leeds-Newcastle",
+  "league": "Premier League",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 2.05,
+  "real": 2,
+  "ratio": 0.9756
+ },
+ {
+  "match": "Levante vs Barcelona",
+  "tippmix_source": "Levante-Barcelona",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 14.44,
+  "real": 12,
+  "ratio": 0.831
+ },
+ {
+  "match": "Levante vs Barcelona",
+  "tippmix_source": "Levante-Barcelona",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 8.61,
+  "real": 7.5,
+  "ratio": 0.8711
+ },
+ {
+  "match": "Levante vs Barcelona",
+  "tippmix_source": "Levante-Barcelona",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 1.16,
+  "real": 1.22,
+  "ratio": 1.0517
+ },
+ {
+  "match": "Levante vs Barcelona",
+  "tippmix_source": "Levante-Barcelona",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.24,
+  "real": 1.27,
+  "ratio": 1.0242
+ },
+ {
+  "match": "Levante vs Barcelona",
+  "tippmix_source": "Levante-Barcelona",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 3.93,
+  "real": 3.75,
+  "ratio": 0.9542
+ },
+ {
+  "match": "Villarreal vs Real Betis",
+  "tippmix_source": "Villarreal-Betis",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 1.89,
+  "real": 1.94,
+  "ratio": 1.0265
+ },
+ {
+  "match": "Villarreal vs Real Betis",
+  "tippmix_source": "Villarreal-Betis",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 3.88,
+  "real": 3.95,
+  "ratio": 1.018
+ },
+ {
+  "match": "Villarreal vs Real Betis",
+  "tippmix_source": "Villarreal-Betis",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 3.75,
+  "real": 3.65,
+  "ratio": 0.9733
+ },
+ {
+  "match": "Villarreal vs Real Betis",
+  "tippmix_source": "Villarreal-Betis",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.56,
+  "real": 1.59,
+  "ratio": 1.0192
+ },
+ {
+  "match": "Villarreal vs Real Betis",
+  "tippmix_source": "Villarreal-Betis",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 2.37,
+  "real": 2.36,
+  "ratio": 0.9958
+ },
+ {
+  "match": "Rayo Vallecano vs Espanyol",
+  "tippmix_source": "Rayo Vallecano-Espanyol",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 2.01,
+  "real": 2.08,
+  "ratio": 1.0348
+ },
+ {
+  "match": "Rayo Vallecano vs Espanyol",
+  "tippmix_source": "Rayo Vallecano-Espanyol",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 3.46,
+  "real": 3.5,
+  "ratio": 1.0116
+ },
+ {
+  "match": "Rayo Vallecano vs Espanyol",
+  "tippmix_source": "Rayo Vallecano-Espanyol",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 3.65,
+  "real": 3.5,
+  "ratio": 0.9589
+ },
+ {
+  "match": "Rayo Vallecano vs Espanyol",
+  "tippmix_source": "Rayo Vallecano-Espanyol",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.93,
+  "real": 1.96,
+  "ratio": 1.0155
+ },
+ {
+  "match": "Rayo Vallecano vs Espanyol",
+  "tippmix_source": "Rayo Vallecano-Espanyol",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 1.87,
+  "real": 1.81,
+  "ratio": 0.9679
+ },
+ {
+  "match": "Alavés vs Valencia",
+  "tippmix_source": "Alaves-Valencia",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 1.91,
+  "real": 1.98,
+  "ratio": 1.0366
+ },
+ {
+  "match": "Alavés vs Valencia",
+  "tippmix_source": "Alaves-Valencia",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 3.22,
+  "real": 3.3,
+  "ratio": 1.0248
+ },
+ {
+  "match": "Alavés vs Valencia",
+  "tippmix_source": "Alaves-Valencia",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 4.39,
+  "real": 4,
+  "ratio": 0.9112
+ },
+ {
+  "match": "Alavés vs Valencia",
+  "tippmix_source": "Alaves-Valencia",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 2.16,
+  "real": 2.32,
+  "ratio": 1.0741
+ },
+ {
+  "match": "Alavés vs Valencia",
+  "tippmix_source": "Alaves-Valencia",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 1.66,
+  "real": 1.58,
+  "ratio": 0.9518
+ },
+ {
+  "match": "Elche CF vs Real Madrid",
+  "tippmix_source": "Elche-Real Madrid",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 8.97,
+  "real": 7.25,
+  "ratio": 0.8082
+ },
+ {
+  "match": "Elche CF vs Real Madrid",
+  "tippmix_source": "Elche-Real Madrid",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 5.67,
+  "real": 5.25,
+  "ratio": 0.9259
+ },
+ {
+  "match": "Elche CF vs Real Madrid",
+  "tippmix_source": "Elche-Real Madrid",
+  "league": "La Liga",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 1.3,
+  "real": 1.37,
+  "ratio": 1.0538
+ },
+ {
+  "match": "Elche CF vs Real Madrid",
+  "tippmix_source": "Elche-Real Madrid",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.36,
+  "real": 1.37,
+  "ratio": 1.0074
+ },
+ {
+  "match": "Elche CF vs Real Madrid",
+  "tippmix_source": "Elche-Real Madrid",
+  "league": "La Liga",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 3.07,
+  "real": 2.95,
+  "ratio": 0.9609
+ },
+ {
+  "match": "RB Leipzig vs Hamburger SV",
+  "tippmix_source": "RB Leipzig-Hamburg",
+  "league": "Bundesliga",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 1.33,
+  "real": 1.39,
+  "ratio": 1.0451
+ },
+ {
+  "match": "RB Leipzig vs Hamburger SV",
+  "tippmix_source": "RB Leipzig-Hamburg",
+  "league": "Bundesliga",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 5.77,
+  "real": 5.75,
+  "ratio": 0.9965
+ },
+ {
+  "match": "RB Leipzig vs Hamburger SV",
+  "tippmix_source": "RB Leipzig-Hamburg",
+  "league": "Bundesliga",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 7.8,
+  "real": 7.25,
+  "ratio": 0.9295
+ },
+ {
+  "match": "RB Leipzig vs Hamburger SV",
+  "tippmix_source": "RB Leipzig-Hamburg",
+  "league": "Bundesliga",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.29,
+  "real": 1.3,
+  "ratio": 1.0078
+ },
+ {
+  "match": "RB Leipzig vs Hamburger SV",
+  "tippmix_source": "RB Leipzig-Hamburg",
+  "league": "Bundesliga",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 3.53,
+  "real": 3.5,
+  "ratio": 0.9915
+ },
+ {
+  "match": "Napoli vs Bologna",
+  "tippmix_source": "Napoli-Bologna",
+  "league": "Serie A",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 1.88,
+  "real": 2.01,
+  "ratio": 1.0691
+ },
+ {
+  "match": "Napoli vs Bologna",
+  "tippmix_source": "Napoli-Bologna",
+  "league": "Serie A",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 3.54,
+  "real": 3.65,
+  "ratio": 1.0311
+ },
+ {
+  "match": "Napoli vs Bologna",
+  "tippmix_source": "Napoli-Bologna",
+  "league": "Serie A",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 4.07,
+  "real": 3.85,
+  "ratio": 0.9459
+ },
+ {
+  "match": "Napoli vs Bologna",
+  "tippmix_source": "Napoli-Bologna",
+  "league": "Serie A",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.93,
+  "real": 1.96,
+  "ratio": 1.0155
+ },
+ {
+  "match": "Napoli vs Bologna",
+  "tippmix_source": "Napoli-Bologna",
+  "league": "Serie A",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 1.86,
+  "real": 1.85,
+  "ratio": 0.9946
+ },
+ {
+  "match": "Sassuolo vs Juventus",
+  "tippmix_source": "Sassuolo-Juventus",
+  "league": "Serie A",
+  "market": "h2h",
+  "selection": "home",
+  "market_avg": 5.09,
+  "real": 4.8,
+  "ratio": 0.943
+ },
+ {
+  "match": "Sassuolo vs Juventus",
+  "tippmix_source": "Sassuolo-Juventus",
+  "league": "Serie A",
+  "market": "h2h",
+  "selection": "draw",
+  "market_avg": 3.92,
+  "real": 4,
+  "ratio": 1.0204
+ },
+ {
+  "match": "Sassuolo vs Juventus",
+  "tippmix_source": "Sassuolo-Juventus",
+  "league": "Serie A",
+  "market": "h2h",
+  "selection": "away",
+  "market_avg": 1.66,
+  "real": 1.74,
+  "ratio": 1.0482
+ },
+ {
+  "match": "Sassuolo vs Juventus",
+  "tippmix_source": "Sassuolo-Juventus",
+  "league": "Serie A",
+  "market": "totals",
+  "selection": "over25",
+  "market_avg": 1.78,
+  "real": 1.8,
+  "ratio": 1.0112
+ },
+ {
+  "match": "Sassuolo vs Juventus",
+  "tippmix_source": "Sassuolo-Juventus",
+  "league": "Serie A",
+  "market": "totals",
+  "selection": "under25",
+  "market_avg": 2.03,
+  "real": 2.01,
+  "ratio": 0.9901
+ }
+]
