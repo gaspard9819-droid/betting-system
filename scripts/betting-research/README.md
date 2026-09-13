@@ -232,6 +232,11 @@ the model is measured against it, not the other way round.
 | `same_match.js` | Joint frequency of same-match outcome pairs against the product of their marginals. |
 | `scorer_ab.js` | The whole `buildSlip` logic on real day pools, `model_prob` scorer vs market-probability scorer, leg-level realized ROI. |
 | `scorer_switch_test.js` | 66 checks on the **deployed** `Build Response` node code after the switch to market probability. Run it from this directory. |
+| `tippmix_calib.js` | Matches collected Tippmixpro prices against `fixtures.csv` market averages and fits the ratio curve per market. Run from `data/`. |
+| `tippmix_calib_check.js` | The three things that had to be ruled out before believing the calibration: opening-vs-closing timing, book-set differences, and sample representativeness. Run from `data/`. |
+| `tippmix_refit.js` | Applies the reference correction, compares sloped vs flat fits, and re-runs the slip-composition table under three curves. Run from `data/`. |
+| `tippmix_ratio_test.js` | 24 checks on the **deployed** `Generate Legs` curve. Run from this directory. |
+| `ratio_impact_test.js` | 23 checks: what the new curve does to real slips, the leg-count optimum, and the ceiling justification. Run from this directory. |
 
 ### What these established
 
@@ -268,13 +273,14 @@ the model is measured against it, not the other way round.
   1.3–2.5 costs −1.9% to −3.5% per leg (realized ≈ 0%, n=5148); 4–5 costs −9% (realized
   −15%); 6+ costs −13% (realized −32%). Same shape in each of the four seasons. This is
   favourite-longshot bias at the average book, amplified by `tippmixRatio()`.
-- **So the flat-8% margin in `acca.js` is wrong, and fewest-legs is only conditionally
-  right.** With the measured ratio, retained value is flat between 2 and 5 legs at
-  5x–10x and *rises* with legs at 20x+ (20x: 2 legs 83% vs 5 legs 86%; 50x: 2 legs 77%
-  vs 6 legs 82%). With Tippmix = market average the old rule holds. The result hinges
-  on the 20-point calibration, so **do not change the builder on it — measure more
-  Tippmixpro prices first**, by band and separately for O/U. The @5 cap is right under
-  every assumption (legs above 4.0 cost 9–13% whatever the ratio).
+- **So the flat-8% margin in `acca.js` is wrong, and fewest-legs looked only
+  conditionally right.** Under the 20-point curve, retained value appeared to *rise*
+  with leg count at 20x+ (20x: 2 legs 83% vs 5 legs 86%). That was flagged as
+  "measure more prices before changing the builder" — and the measurement,
+  **done 2026-09-13, cleared the builder**: with 140 real prices the optimum is 2–3
+  legs at every target, so the fewest-legs rule holds. See "Tippmixpro price
+  calibration" below. The @5 cap is right under every assumption (leg cost rises
+  monotonically with odds whatever the ratio).
 - **1X2 favourites beat O/U legs in every band**: O/U EV(fair) is 1–1.5pp worse per leg
   (O/U overround 5.0% vs 4.2–4.9% for 1X2), and `tippmixRatio` is not calibrated on
   O/U at all. Under 2.5 is the worst leg type (−4.2% realized at 1.3–1.6, −12.8% at
@@ -291,6 +297,46 @@ the model is measured against it, not the other way round.
   in favour of opening, the other way above it. Not a strategy.
 - **Lowering `minOdds` below 1.30 gains nothing**: 1.1–1.3 home legs cost the same as
   1.3–1.6 (−1.4% fair, −0.5% realized).
+
+### Tippmixpro price calibration (2026-09-13)
+
+204 real Tippmixpro prices collected by hand, matched against `fixtures.csv` market
+averages: **140 usable points**, 28 matches, 7 leagues. Replaces the 20-point curve that
+every slip-composition conclusion had been resting on.
+
+Raw data in `data/tippmix/`. Get the market side with:
+
+```bash
+cd data && curl -sfL -A "Mozilla/5.0" -o fresh/fixtures.csv https://www.football-data.co.uk/fixtures.csv
+```
+
+- **The two markets slope opposite ways**, which a single curve cannot express. 1X2:
+  `1.0322 − 0.00629 × odds` (n=84, r=−0.335, t=−3.21). O/U 2.5:
+  `0.9302 + 0.04168 × odds` (n=56, r=+0.504, t=+4.29). Both significant. The old curve
+  was fitted on 1X2 only and had the O/U sign backwards.
+- **The old curve was biased +2.35pp** — the slate assumed a worse Tippmixpro price than
+  reality everywhere. New curves are unbiased and fit better (1X2 RMSE 6.00 → 5.46pp).
+- **Tippmixpro's overround is 4.4% on 1X2**, against 8.0% for the football-data opening
+  average. It is *narrower* than a typical book. Against the best available book it still
+  pays 4.7% less on 1X2, 1.3% less on O/U — line shopping still wins, monopoly or not.
+- **Two corrections were mandatory**, both in `tippmix_calib_check.js`. The `fixtures.csv`
+  average is 7 opening books at 8.00% overround, while the slate's `market_avg_odds` is
+  The Odds API `eu`; measured on the 2026-09-08 snapshot the slate's reference runs
+  **1.30% higher** (1X2) and 0.48% (O/U), so the fits are divided by that. Opening-vs-closing
+  timing was ruled out: 0.15pp overround difference across 7228 matches.
+- **Only 28 of 204 matches could be paired**, and that is the ceiling, not a bug:
+  `fixtures.csv` covers 4 days, while the collected prices span several future rounds.
+  International and Hungarian fixtures are not in football-data at all.
+- **The clamp above 3.2 on O/U is load-bearing.** Uncapped, the curve makes 3.2+ legs look
+  +5.13% EV (n=243) — an extrapolation from 4 points, not an edge. Realized ROI on the
+  same set is +1.85% ± 10.7, statistically zero. The node says so in a comment.
+- **Live effect is small but real**: re-pricing the 145-leg slate moved prices +1.44% on
+  average, and changed the chosen legs at all 6 targets tested.
+
+**What is still unmeasured:** O/U above 3.2 (4 points), `btts` entirely, and whether the
+ratio drifts over time. The 122% ratios seen on two long under-2.5 legs
+(RB Leipzig–Hamburg, Elversberg–Bayern) were hand-verified as genuine, and suggest long
+`under` legs are where Tippmixpro is most generous — worth more points if revisited.
 
 ### A trap in the day-pool simulations
 

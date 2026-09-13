@@ -1,0 +1,1402 @@
+[
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "E0",
+  "match": "Coventry v Brighton",
+  "tippmix": 3.85,
+  "market_avg": 3.91,
+  "market_max": 4.1,
+  "ratio": 0.9847
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "E0",
+  "match": "Coventry v Brighton",
+  "tippmix": 3.9,
+  "market_avg": 3.73,
+  "market_max": 3.9,
+  "ratio": 1.0456
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "E0",
+  "match": "Coventry v Brighton",
+  "tippmix": 1.94,
+  "market_avg": 1.85,
+  "market_max": 1.9,
+  "ratio": 1.0486
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "E0",
+  "match": "Coventry v Brighton",
+  "tippmix": 1.72,
+  "market_avg": 1.72,
+  "market_max": 1.75,
+  "ratio": 1
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "E0",
+  "match": "Coventry v Brighton",
+  "tippmix": 2.13,
+  "market_avg": 2.03,
+  "market_max": 2.1,
+  "ratio": 1.0493
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "E0",
+  "match": "Man United v Man City",
+  "tippmix": 3.15,
+  "market_avg": 3.08,
+  "market_max": 3.25,
+  "ratio": 1.0227
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "E0",
+  "match": "Man United v Man City",
+  "tippmix": 3.85,
+  "market_avg": 3.78,
+  "market_max": 4,
+  "ratio": 1.0185
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "E0",
+  "match": "Man United v Man City",
+  "tippmix": 2.27,
+  "market_avg": 2.1,
+  "market_max": 2.15,
+  "ratio": 1.081
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "E0",
+  "match": "Man United v Man City",
+  "tippmix": 1.57,
+  "market_avg": 1.5,
+  "market_max": 1.55,
+  "ratio": 1.0467
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "E0",
+  "match": "Man United v Man City",
+  "tippmix": 2.41,
+  "market_avg": 2.49,
+  "market_max": 2.55,
+  "ratio": 0.9679
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "E0",
+  "match": "Leeds v Newcastle",
+  "tippmix": 2.36,
+  "market_avg": 2.38,
+  "market_max": 2.5,
+  "ratio": 0.9916
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "E0",
+  "match": "Leeds v Newcastle",
+  "tippmix": 3.6,
+  "market_avg": 3.45,
+  "market_max": 3.6,
+  "ratio": 1.0435
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "E0",
+  "match": "Leeds v Newcastle",
+  "tippmix": 2.9,
+  "market_avg": 2.81,
+  "market_max": 2.88,
+  "ratio": 1.032
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "E0",
+  "match": "Leeds v Newcastle",
+  "tippmix": 1.81,
+  "market_avg": 1.75,
+  "market_max": 1.8,
+  "ratio": 1.0343
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "E0",
+  "match": "Leeds v Newcastle",
+  "tippmix": 2,
+  "market_avg": 2,
+  "market_max": 2.05,
+  "ratio": 1
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "SP1",
+  "match": "Celta v Malaga",
+  "tippmix": 1.78,
+  "market_avg": 1.7,
+  "market_max": 1.75,
+  "ratio": 1.0471
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "SP1",
+  "match": "Celta v Malaga",
+  "tippmix": 3.75,
+  "market_avg": 3.62,
+  "market_max": 3.75,
+  "ratio": 1.0359
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "SP1",
+  "match": "Celta v Malaga",
+  "tippmix": 4.9,
+  "market_avg": 4.89,
+  "market_max": 5.25,
+  "ratio": 1.002
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "SP1",
+  "match": "Celta v Malaga",
+  "tippmix": 2.09,
+  "market_avg": 2.03,
+  "market_max": 2.1,
+  "ratio": 1.0296
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "SP1",
+  "match": "Celta v Malaga",
+  "tippmix": 1.74,
+  "market_avg": 1.72,
+  "market_max": 1.77,
+  "ratio": 1.0116
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "SP1",
+  "match": "Levante v Barcelona",
+  "tippmix": 12,
+  "market_avg": 14.46,
+  "market_max": 17,
+  "ratio": 0.8299
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "SP1",
+  "match": "Levante v Barcelona",
+  "tippmix": 7.5,
+  "market_avg": 7.89,
+  "market_max": 9,
+  "ratio": 0.9506
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "SP1",
+  "match": "Levante v Barcelona",
+  "tippmix": 1.22,
+  "market_avg": 1.15,
+  "market_max": 1.19,
+  "ratio": 1.0609
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "SP1",
+  "match": "Levante v Barcelona",
+  "tippmix": 1.27,
+  "market_avg": 1.25,
+  "market_max": 1.29,
+  "ratio": 1.016
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "SP1",
+  "match": "Levante v Barcelona",
+  "tippmix": 3.75,
+  "market_avg": 3.71,
+  "market_max": 3.9,
+  "ratio": 1.0108
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "SP1",
+  "match": "Getafe v La Coruna",
+  "tippmix": 2.59,
+  "market_avg": 2.4,
+  "market_max": 2.45,
+  "ratio": 1.0792
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "SP1",
+  "match": "Getafe v La Coruna",
+  "tippmix": 3,
+  "market_avg": 2.79,
+  "market_max": 2.9,
+  "ratio": 1.0753
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "SP1",
+  "match": "Getafe v La Coruna",
+  "tippmix": 3.15,
+  "market_avg": 3.38,
+  "market_max": 3.6,
+  "ratio": 0.932
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "SP1",
+  "match": "Getafe v La Coruna",
+  "tippmix": 2.95,
+  "market_avg": 3.02,
+  "market_max": 3.2,
+  "ratio": 0.9768
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "SP1",
+  "match": "Getafe v La Coruna",
+  "tippmix": 1.39,
+  "market_avg": 1.36,
+  "market_max": 1.4,
+  "ratio": 1.0221
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "SP1",
+  "match": "Sociedad v Ath Madrid",
+  "tippmix": 3.35,
+  "market_avg": 2.81,
+  "market_max": 2.94,
+  "ratio": 1.1922
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "SP1",
+  "match": "Sociedad v Ath Madrid",
+  "tippmix": 3.65,
+  "market_avg": 3.48,
+  "market_max": 3.6,
+  "ratio": 1.0489
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "SP1",
+  "match": "Sociedad v Ath Madrid",
+  "tippmix": 2.26,
+  "market_avg": 2.35,
+  "market_max": 2.4,
+  "ratio": 0.9617
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "SP1",
+  "match": "Sociedad v Ath Madrid",
+  "tippmix": 1.64,
+  "market_avg": 1.64,
+  "market_max": 1.67,
+  "ratio": 1
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "SP1",
+  "match": "Sociedad v Ath Madrid",
+  "tippmix": 2.25,
+  "market_avg": 2.17,
+  "market_max": 2.2,
+  "ratio": 1.0369
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "SP1",
+  "match": "Villarreal v Betis",
+  "tippmix": 1.94,
+  "market_avg": 1.88,
+  "market_max": 1.93,
+  "ratio": 1.0319
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "SP1",
+  "match": "Villarreal v Betis",
+  "tippmix": 3.95,
+  "market_avg": 3.79,
+  "market_max": 4,
+  "ratio": 1.0422
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "SP1",
+  "match": "Villarreal v Betis",
+  "tippmix": 3.65,
+  "market_avg": 3.62,
+  "market_max": 3.8,
+  "ratio": 1.0083
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "SP1",
+  "match": "Villarreal v Betis",
+  "tippmix": 1.59,
+  "market_avg": 1.54,
+  "market_max": 1.58,
+  "ratio": 1.0325
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "SP1",
+  "match": "Villarreal v Betis",
+  "tippmix": 2.36,
+  "market_avg": 2.36,
+  "market_max": 2.4,
+  "ratio": 1
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "I1",
+  "match": "Lecce v Monza",
+  "tippmix": 2.75,
+  "market_avg": 2.6,
+  "market_max": 2.7,
+  "ratio": 1.0577
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "I1",
+  "match": "Lecce v Monza",
+  "tippmix": 3.25,
+  "market_avg": 3.09,
+  "market_max": 3.2,
+  "ratio": 1.0518
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "I1",
+  "match": "Lecce v Monza",
+  "tippmix": 2.75,
+  "market_avg": 2.78,
+  "market_max": 2.9,
+  "ratio": 0.9892
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "I1",
+  "match": "Lecce v Monza",
+  "tippmix": 2.34,
+  "market_avg": 2.21,
+  "market_max": 2.3,
+  "ratio": 1.0588
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "I1",
+  "match": "Lecce v Monza",
+  "tippmix": 1.6,
+  "market_avg": 1.63,
+  "market_max": 1.67,
+  "ratio": 0.9816
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "I1",
+  "match": "Napoli v Bologna",
+  "tippmix": 2.01,
+  "market_avg": 1.75,
+  "market_max": 1.8,
+  "ratio": 1.1486
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "I1",
+  "match": "Napoli v Bologna",
+  "tippmix": 3.65,
+  "market_avg": 3.53,
+  "market_max": 3.6,
+  "ratio": 1.034
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "I1",
+  "match": "Napoli v Bologna",
+  "tippmix": 3.85,
+  "market_avg": 4.72,
+  "market_max": 5.1,
+  "ratio": 0.8157
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "I1",
+  "match": "Napoli v Bologna",
+  "tippmix": 1.96,
+  "market_avg": 2.05,
+  "market_max": 2.1,
+  "ratio": 0.9561
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "I1",
+  "match": "Napoli v Bologna",
+  "tippmix": 1.85,
+  "market_avg": 1.72,
+  "market_max": 1.78,
+  "ratio": 1.0756
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "I1",
+  "match": "Sassuolo v Juventus",
+  "tippmix": 4.8,
+  "market_avg": 5.12,
+  "market_max": 5.5,
+  "ratio": 0.9375
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "I1",
+  "match": "Sassuolo v Juventus",
+  "tippmix": 4,
+  "market_avg": 3.94,
+  "market_max": 4,
+  "ratio": 1.0152
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "I1",
+  "match": "Sassuolo v Juventus",
+  "tippmix": 1.74,
+  "market_avg": 1.62,
+  "market_max": 1.65,
+  "ratio": 1.0741
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "I1",
+  "match": "Sassuolo v Juventus",
+  "tippmix": 1.8,
+  "market_avg": 1.78,
+  "market_max": 1.83,
+  "ratio": 1.0112
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "I1",
+  "match": "Sassuolo v Juventus",
+  "tippmix": 2.01,
+  "market_avg": 1.97,
+  "market_max": 2.03,
+  "ratio": 1.0203
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "I1",
+  "match": "Torino v Roma",
+  "tippmix": 5.5,
+  "market_avg": 5.71,
+  "market_max": 6.5,
+  "ratio": 0.9632
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "I1",
+  "match": "Torino v Roma",
+  "tippmix": 4.2,
+  "market_avg": 3.98,
+  "market_max": 4.2,
+  "ratio": 1.0553
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "I1",
+  "match": "Torino v Roma",
+  "tippmix": 1.59,
+  "market_avg": 1.56,
+  "market_max": 1.62,
+  "ratio": 1.0192
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "I1",
+  "match": "Torino v Roma",
+  "tippmix": 1.77,
+  "market_avg": 1.77,
+  "market_max": 1.83,
+  "ratio": 1
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "I1",
+  "match": "Torino v Roma",
+  "tippmix": 2.05,
+  "market_avg": 1.97,
+  "market_max": 2.05,
+  "ratio": 1.0406
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "I1",
+  "match": "Como v Parma",
+  "tippmix": 1.26,
+  "market_avg": 1.22,
+  "market_max": 1.25,
+  "ratio": 1.0328
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "I1",
+  "match": "Como v Parma",
+  "tippmix": 5.75,
+  "market_avg": 5.86,
+  "market_max": 6.5,
+  "ratio": 0.9812
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "I1",
+  "match": "Como v Parma",
+  "tippmix": 12.5,
+  "market_avg": 13.15,
+  "market_max": 15,
+  "ratio": 0.9506
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "I1",
+  "match": "Como v Parma",
+  "tippmix": 1.66,
+  "market_avg": 1.68,
+  "market_max": 1.73,
+  "ratio": 0.9881
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "I1",
+  "match": "Como v Parma",
+  "tippmix": 2.23,
+  "market_avg": 2.12,
+  "market_max": 2.2,
+  "ratio": 1.0519
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "I1",
+  "match": "Inter v Udinese",
+  "tippmix": 1.3,
+  "market_avg": 1.25,
+  "market_max": 1.29,
+  "ratio": 1.04
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "I1",
+  "match": "Inter v Udinese",
+  "tippmix": 5.5,
+  "market_avg": 5.85,
+  "market_max": 6,
+  "ratio": 0.9402
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "I1",
+  "match": "Inter v Udinese",
+  "tippmix": 10,
+  "market_avg": 11.15,
+  "market_max": 14,
+  "ratio": 0.8969
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "I1",
+  "match": "Inter v Udinese",
+  "tippmix": 1.53,
+  "market_avg": 1.53,
+  "market_max": 1.57,
+  "ratio": 1
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "I1",
+  "match": "Inter v Udinese",
+  "tippmix": 2.51,
+  "market_avg": 2.42,
+  "market_max": 2.5,
+  "ratio": 1.0372
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "D1",
+  "match": "RB Leipzig v Hamburg",
+  "tippmix": 1.39,
+  "market_avg": 1.34,
+  "market_max": 1.38,
+  "ratio": 1.0373
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "D1",
+  "match": "RB Leipzig v Hamburg",
+  "tippmix": 5.75,
+  "market_avg": 5.24,
+  "market_max": 5.5,
+  "ratio": 1.0973
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "D1",
+  "match": "RB Leipzig v Hamburg",
+  "tippmix": 7.25,
+  "market_avg": 7.53,
+  "market_max": 8.6,
+  "ratio": 0.9628
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "D1",
+  "match": "RB Leipzig v Hamburg",
+  "tippmix": 1.3,
+  "market_avg": 1.39,
+  "market_max": 1.42,
+  "ratio": 0.9353
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "D1",
+  "match": "RB Leipzig v Hamburg",
+  "tippmix": 3.5,
+  "market_avg": 2.85,
+  "market_max": 3,
+  "ratio": 1.2281
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "D1",
+  "match": "Elversberg v Bayern Munich",
+  "tippmix": 14,
+  "market_avg": 12.77,
+  "market_max": 15,
+  "ratio": 1.0963
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "D1",
+  "match": "Elversberg v Bayern Munich",
+  "tippmix": 9.25,
+  "market_avg": 8.35,
+  "market_max": 9,
+  "ratio": 1.1078
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "D1",
+  "match": "Elversberg v Bayern Munich",
+  "tippmix": 1.2,
+  "market_avg": 1.15,
+  "market_max": 1.18,
+  "ratio": 1.0435
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "D1",
+  "match": "Elversberg v Bayern Munich",
+  "tippmix": 1.13,
+  "market_avg": 1.16,
+  "market_max": 1.18,
+  "ratio": 0.9741
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "D1",
+  "match": "Elversberg v Bayern Munich",
+  "tippmix": 6,
+  "market_avg": 4.89,
+  "market_max": 5.25,
+  "ratio": 1.227
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "F1",
+  "match": "Lille v Troyes",
+  "tippmix": 1.47,
+  "market_avg": 1.39,
+  "market_max": 1.42,
+  "ratio": 1.0576
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "F1",
+  "match": "Lille v Troyes",
+  "tippmix": 4.8,
+  "market_avg": 4.69,
+  "market_max": 5,
+  "ratio": 1.0235
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "F1",
+  "match": "Lille v Troyes",
+  "tippmix": 7,
+  "market_avg": 7.36,
+  "market_max": 7.9,
+  "ratio": 0.9511
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "F1",
+  "match": "Lille v Troyes",
+  "tippmix": 1.63,
+  "market_avg": 1.66,
+  "market_max": 1.68,
+  "ratio": 0.9819
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "F1",
+  "match": "Lille v Troyes",
+  "tippmix": 2.27,
+  "market_avg": 2.13,
+  "market_max": 2.2,
+  "ratio": 1.0657
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "F1",
+  "match": "Le Mans v Lens",
+  "tippmix": 4.55,
+  "market_avg": 4.77,
+  "market_max": 5.1,
+  "ratio": 0.9539
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "F1",
+  "match": "Le Mans v Lens",
+  "tippmix": 4.25,
+  "market_avg": 4.02,
+  "market_max": 4.2,
+  "ratio": 1.0572
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "F1",
+  "match": "Le Mans v Lens",
+  "tippmix": 1.73,
+  "market_avg": 1.64,
+  "market_max": 1.67,
+  "ratio": 1.0549
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "F1",
+  "match": "Le Mans v Lens",
+  "tippmix": 1.59,
+  "market_avg": 1.63,
+  "market_max": 1.67,
+  "ratio": 0.9755
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "F1",
+  "match": "Le Mans v Lens",
+  "tippmix": 2.37,
+  "market_avg": 2.18,
+  "market_max": 2.2,
+  "ratio": 1.0872
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "F1",
+  "match": "Brest v Paris SG",
+  "tippmix": 10.5,
+  "market_avg": 9.85,
+  "market_max": 12.5,
+  "ratio": 1.066
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "F1",
+  "match": "Brest v Paris SG",
+  "tippmix": 6.25,
+  "market_avg": 5.88,
+  "market_max": 6.5,
+  "ratio": 1.0629
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "F1",
+  "match": "Brest v Paris SG",
+  "tippmix": 1.28,
+  "market_avg": 1.25,
+  "market_max": 1.29,
+  "ratio": 1.024
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "F1",
+  "match": "Brest v Paris SG",
+  "tippmix": 1.39,
+  "market_avg": 1.39,
+  "market_max": 1.42,
+  "ratio": 1
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "F1",
+  "match": "Brest v Paris SG",
+  "tippmix": 3,
+  "market_avg": 2.84,
+  "market_max": 3,
+  "ratio": 1.0563
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "P1",
+  "match": "Benfica v Gil Vicente",
+  "tippmix": 1.14,
+  "market_avg": 1.13,
+  "market_max": 1.15,
+  "ratio": 1.0088
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "P1",
+  "match": "Benfica v Gil Vicente",
+  "tippmix": 7.5,
+  "market_avg": 7.44,
+  "market_max": 8.25,
+  "ratio": 1.0081
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "P1",
+  "match": "Benfica v Gil Vicente",
+  "tippmix": 17.5,
+  "market_avg": 17.46,
+  "market_max": 23,
+  "ratio": 1.0023
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "P1",
+  "match": "Benfica v Gil Vicente",
+  "tippmix": 1.45,
+  "market_avg": 1.47,
+  "market_max": 1.5,
+  "ratio": 0.9864
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "P1",
+  "match": "Benfica v Gil Vicente",
+  "tippmix": 2.61,
+  "market_avg": 2.52,
+  "market_max": 2.6,
+  "ratio": 1.0357
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "P1",
+  "match": "Arouca v Santa Clara",
+  "tippmix": 2.61,
+  "market_avg": 2.56,
+  "market_max": 2.63,
+  "ratio": 1.0195
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "P1",
+  "match": "Arouca v Santa Clara",
+  "tippmix": 3.2,
+  "market_avg": 3.08,
+  "market_max": 3.2,
+  "ratio": 1.039
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "P1",
+  "match": "Arouca v Santa Clara",
+  "tippmix": 2.7,
+  "market_avg": 2.72,
+  "market_max": 2.8,
+  "ratio": 0.9926
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "P1",
+  "match": "Arouca v Santa Clara",
+  "tippmix": 2.24,
+  "market_avg": 2.25,
+  "market_max": 2.3,
+  "ratio": 0.9956
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "P1",
+  "match": "Arouca v Santa Clara",
+  "tippmix": 1.59,
+  "market_avg": 1.58,
+  "market_max": 1.62,
+  "ratio": 1.0063
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "P1",
+  "match": "Famalicao v Sp Lisbon",
+  "tippmix": 6,
+  "market_avg": 5.47,
+  "market_max": 6,
+  "ratio": 1.0969
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "P1",
+  "match": "Famalicao v Sp Lisbon",
+  "tippmix": 4.2,
+  "market_avg": 4.13,
+  "market_max": 4.5,
+  "ratio": 1.0169
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "P1",
+  "match": "Famalicao v Sp Lisbon",
+  "tippmix": 1.51,
+  "market_avg": 1.52,
+  "market_max": 1.57,
+  "ratio": 0.9934
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "P1",
+  "match": "Famalicao v Sp Lisbon",
+  "tippmix": 1.75,
+  "market_avg": 1.73,
+  "market_max": 1.8,
+  "ratio": 1.0116
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "P1",
+  "match": "Famalicao v Sp Lisbon",
+  "tippmix": 1.99,
+  "market_avg": 2.01,
+  "market_max": 2.05,
+  "ratio": 0.99
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "P1",
+  "match": "Rio Ave v Estrela",
+  "tippmix": 2.7,
+  "market_avg": 2.7,
+  "market_max": 2.8,
+  "ratio": 1
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "P1",
+  "match": "Rio Ave v Estrela",
+  "tippmix": 3.4,
+  "market_avg": 3.2,
+  "market_max": 3.3,
+  "ratio": 1.0625
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "P1",
+  "match": "Rio Ave v Estrela",
+  "tippmix": 2.49,
+  "market_avg": 2.48,
+  "market_max": 2.55,
+  "ratio": 1.004
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "P1",
+  "match": "Rio Ave v Estrela",
+  "tippmix": 1.9,
+  "market_avg": 2.03,
+  "market_max": 2.1,
+  "ratio": 0.936
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "P1",
+  "match": "Rio Ave v Estrela",
+  "tippmix": 1.82,
+  "market_avg": 1.71,
+  "market_max": 1.75,
+  "ratio": 1.0643
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "P1",
+  "match": "Moreirense v Maritimo",
+  "tippmix": 2.46,
+  "market_avg": 2.4,
+  "market_max": 2.5,
+  "ratio": 1.025
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "P1",
+  "match": "Moreirense v Maritimo",
+  "tippmix": 3.2,
+  "market_avg": 3.12,
+  "market_max": 3.2,
+  "ratio": 1.0256
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "P1",
+  "match": "Moreirense v Maritimo",
+  "tippmix": 2.9,
+  "market_avg": 2.88,
+  "market_max": 2.95,
+  "ratio": 1.0069
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "P1",
+  "match": "Moreirense v Maritimo",
+  "tippmix": 2.25,
+  "market_avg": 2.21,
+  "market_max": 2.25,
+  "ratio": 1.0181
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "P1",
+  "match": "Moreirense v Maritimo",
+  "tippmix": 1.59,
+  "market_avg": 1.6,
+  "market_max": 1.62,
+  "ratio": 0.9938
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "P1",
+  "match": "Sp Braga v Estoril",
+  "tippmix": 1.48,
+  "market_avg": 1.44,
+  "market_max": 1.5,
+  "ratio": 1.0278
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "P1",
+  "match": "Sp Braga v Estoril",
+  "tippmix": 4.35,
+  "market_avg": 4.3,
+  "market_max": 4.5,
+  "ratio": 1.0116
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "P1",
+  "match": "Sp Braga v Estoril",
+  "tippmix": 6.25,
+  "market_avg": 6.41,
+  "market_max": 7.2,
+  "ratio": 0.975
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "P1",
+  "match": "Sp Braga v Estoril",
+  "tippmix": 1.68,
+  "market_avg": 1.67,
+  "market_max": 1.7,
+  "ratio": 1.006
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "P1",
+  "match": "Sp Braga v Estoril",
+  "tippmix": 2.09,
+  "market_avg": 2.09,
+  "market_max": 2.15,
+  "ratio": 1
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "N1",
+  "match": "Excelsior v Utrecht",
+  "tippmix": 2.08,
+  "market_avg": 2.21,
+  "market_max": 2.3,
+  "ratio": 0.9412
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "N1",
+  "match": "Excelsior v Utrecht",
+  "tippmix": 3.8,
+  "market_avg": 3.6,
+  "market_max": 3.75,
+  "ratio": 1.0556
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "N1",
+  "match": "Excelsior v Utrecht",
+  "tippmix": 3.1,
+  "market_avg": 2.86,
+  "market_max": 3,
+  "ratio": 1.0839
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "N1",
+  "match": "Excelsior v Utrecht",
+  "tippmix": 1.54,
+  "market_avg": 1.59,
+  "market_max": 1.62,
+  "ratio": 0.9686
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "N1",
+  "match": "Excelsior v Utrecht",
+  "tippmix": 2.35,
+  "market_avg": 2.25,
+  "market_max": 2.3,
+  "ratio": 1.0444
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "N1",
+  "match": "Heerenveen v Telstar",
+  "tippmix": 1.58,
+  "market_avg": 1.61,
+  "market_max": 1.65,
+  "ratio": 0.9814
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "N1",
+  "match": "Heerenveen v Telstar",
+  "tippmix": 4.6,
+  "market_avg": 4.28,
+  "market_max": 4.5,
+  "ratio": 1.0748
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "N1",
+  "match": "Heerenveen v Telstar",
+  "tippmix": 4.7,
+  "market_avg": 4.46,
+  "market_max": 4.75,
+  "ratio": 1.0538
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "N1",
+  "match": "Heerenveen v Telstar",
+  "tippmix": 1.35,
+  "market_avg": 1.39,
+  "market_max": 1.44,
+  "ratio": 0.9712
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "N1",
+  "match": "Heerenveen v Telstar",
+  "tippmix": 3,
+  "market_avg": 2.79,
+  "market_max": 2.9,
+  "ratio": 1.0753
+ },
+ {
+  "market": "h2h",
+  "sel": "home",
+  "div": "N1",
+  "match": "Zwolle v Feyenoord",
+  "tippmix": 5.5,
+  "market_avg": 5.98,
+  "market_max": 6.5,
+  "ratio": 0.9197
+ },
+ {
+  "market": "h2h",
+  "sel": "draw",
+  "div": "N1",
+  "match": "Zwolle v Feyenoord",
+  "tippmix": 4.75,
+  "market_avg": 4.91,
+  "market_max": 5.25,
+  "ratio": 0.9674
+ },
+ {
+  "market": "h2h",
+  "sel": "away",
+  "div": "N1",
+  "match": "Zwolle v Feyenoord",
+  "tippmix": 1.49,
+  "market_avg": 1.42,
+  "market_max": 1.48,
+  "ratio": 1.0493
+ },
+ {
+  "market": "ou",
+  "sel": "over25",
+  "div": "N1",
+  "match": "Zwolle v Feyenoord",
+  "tippmix": 1.35,
+  "market_avg": 1.33,
+  "market_max": 1.36,
+  "ratio": 1.015
+ },
+ {
+  "market": "ou",
+  "sel": "under25",
+  "div": "N1",
+  "match": "Zwolle v Feyenoord",
+  "tippmix": 2.95,
+  "market_avg": 3.11,
+  "market_max": 3.25,
+  "ratio": 0.9486
+ }
+]

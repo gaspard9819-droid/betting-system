@@ -397,10 +397,89 @@ t = −5.08 at n = 20. Tippmixpro is **competitive at short odds and cuts hard a
 odds** — a single multiplier cannot express that, and the flat 4.5% under-estimated
 every price below about 4.0.
 
-`Generate Legs` now applies `tippmixRatio(odds) = 1.0469 − 0.01814 × odds`, clamped to
+`Generate Legs` applied `tippmixRatio(odds) = 1.0469 − 0.01814 × odds`, clamped to
 the measured range 1.3–6.0 rather than extrapolated. Residuals on the calibration
-points are within ±2.9%, against 5–9% before. Re-calibrate if Tippmixpro changes its
-margin structure; the sampling script pattern is in `scripts/betting-research`.
+points are within ±2.9%, against 5–9% before. **Superseded 2026-09-13 — see below.**
+
+## Re-calibrated on 140 real prices, and the two markets pull opposite ways (2026-09-13)
+
+The 20-point curve was the single largest assumption in the system: every slip-composition
+conclusion rested on it, and it covered 1X2 prices only. 204 real Tippmixpro prices were
+collected and matched against football-data.co.uk's `fixtures.csv` market averages,
+yielding **140 usable points** across 28 matches in 7 leagues.
+
+**`tippmixRatio` is now market-aware, because the two markets slope in opposite
+directions:**
+
+| market | fitted curve | measured range | n | r | t |
+|---|---|---|---|---|---|
+| 1X2 (`h2h`) | `1.0322 − 0.00629 × odds` | 1.13–17.46 | 84 | −0.335 | −3.21 |
+| O/U 2.5 (`totals`) | `0.9302 + 0.04168 × odds` | 1.16–4.89 | 56 | +0.504 | +4.29 |
+
+Both slopes are significant. On 1X2 Tippmixpro pays relatively more at short odds; on
+over/under it pays relatively more at **long** odds. The old single curve, applied to O/U,
+had the sign backwards. The O/U curve is flat above 3.2 — only 4 calibration points sit
+above it.
+
+**The old curve was biased by +2.35 percentage points**, meaning the slate assumed a worse
+Tippmixpro price than reality in every band. The new curves are unbiased (−0.07pp on 1X2,
++0.14pp on O/U) and fit better (RMSE 6.00 → 5.46pp on 1X2, 5.94 → 4.82pp on O/U).
+
+**Two corrections were needed before the numbers could be used**, both in
+`tippmix_calib_check.js`:
+
+- `fixtures.csv`'s `Avg` column averages **7 opening books at 8.00% overround**, against
+  the slate's own `market_avg_odds` (The Odds API `eu` region). Measured on the
+  2026-09-08 snapshot, the slate's reference is **1.30% higher** on 1X2 and 0.48% on O/U,
+  so the fitted ratios are divided by that before being applied. Without this the curve
+  would be calibrated against the wrong reference.
+- Opening-vs-closing timing was ruled out as an explanation: across 7228 matches the
+  opening average's overround exceeds the closing one by only 0.15pp.
+
+**Tippmixpro's own overround is 4.4% on 1X2 (n=28), against 8.0% for the football-data
+opening average** — it is *narrower* than a typical book, not wider. The framing that a
+state monopoly necessarily cuts harder than the market does not survive measurement.
+Against the best available book it still pays 4.7% less on 1X2 and 1.3% less on O/U.
+
+### This closes the leg-count question, in favour of the existing rule
+
+`composition_sensitivity.js` had flagged that under the *old* curve, 20x and 50x targets
+would retain more value at 5–6 legs than at 2 — which would have contradicted the
+fewest-legs rule the builder is built around. That was an artefact of the miscalibrated
+curve. With the real prices (`ratio_impact_test.js`):
+
+| target | best leg count, old curve | best leg count, new curve |
+|---|---|---|
+| 5x | 2 | 2 |
+| 10x | 2 | 2 |
+| 20x | 5 | **3** |
+| 50x | 6 | **3** |
+
+**The fewest-legs rule stands and the builder needs no change.** The @5.00 ceiling also
+holds: leg cost still rises monotonically with odds (−1.77% at 1.3–2.0 up to −9.73% at
+8–12), so capping long legs remains right.
+
+**One artefact is deliberately neutralised in the code.** Uncapped, the new O/U curve
+makes 3.2+ over/under legs look *positive*-EV (+5.13% against Pinnacle fair, n=243). That
+is the curve extrapolating from 4 points, not an edge — realized ROI on the same set is
++1.85% with a ±10.7 standard error, i.e. statistically zero. The clamp at 3.2 removes it,
+and the node carries a comment saying why, so a later reader does not "fix" the clamp.
+
+Effect on live prices is small: re-pricing the real 145-leg slate moved `tippmix_odds` by
+**+1.44% on average** (+2.36% on 1X2, +0.05% on O/U), no single price by more than 6.3%.
+It changed the chosen legs at all 6 targets tested, because slips sit on narrow margins.
+
+**Verified** against the code read out of the deployed workflow JSON:
+`tippmix_ratio_test.js` (24 checks — market-awareness, opposite slopes, better fit than
+the old curve on both markets, clamping, and no input producing a nonsensical price) and
+`ratio_impact_test.js` (23 checks — price movement bounds, leg-count optimum, ceiling
+justification, and every slip invariant under the new prices).
+
+**Raw data kept** at `scripts/betting-research/data/tippmix/` — the collected prices and
+the 140 matched calibration points. Re-run `tippmix_calib.js` after collecting more.
+
+**Still thin above 3.2 on O/U (4 points) and unmeasured on `btts`** (which the API does
+not serve anyway; an unknown market falls back to the 1X2 curve).
 
 ## A full PUT wipes credentials — always merge them back
 
