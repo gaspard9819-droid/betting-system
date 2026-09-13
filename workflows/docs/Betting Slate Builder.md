@@ -56,13 +56,62 @@ keeps only high-probability (low-odds) legs, which made `/szelveny 50` and `/sze
 unreachable during testing. `BANDS` in `buildSlip` keeps the best legs within each odds
 band so every target stays reachable.
 
-**One leg per match** (`usedMatches`) — correlation protection. Two outcomes from the same
-fixture are not independent, and most books price them as a combo rather than a straight
-multiply.
+**One leg per match** (`usedMatches`) — correlation protection, and **confirmed against
+the real book on 2026-09-13**. Two outcomes from one fixture are not independent, and
+Tippmixpro does allow both on one slip — but it does not multiply the odds. Measured on a
+live pair: the straight product was **9.16**, Tippmixpro quoted **5.25**, i.e. 57.3% of
+the product, a **42.7% deduction**. The correlation only pays back 1.55× on the best pair
+measured (draw + under 2.5, `same_match.js`), so the combination nets **−21.9%** against
+betting the legs separately. The rule stays, and it is now measured rather than assumed.
 
 **ALACSONY-confidence legs are excluded from slips.** Confidence is model/market
 *agreement*, not divergence — see [Football Tips + Line Shopper.md](Football%20Tips%20%2B%20Line%20Shopper.md) for the
-measurements behind that inversion.
+measurements behind that inversion. Re-measured 2026-09-12 across 25k legs: excluding
+ALACSONY is justified (−8.3% / −10.5% / −18.8% in the three odds bands), but the **MAGAS
+bonus was not** and has been removed — KOZEPES outperforms MAGAS in two of three bands.
+
+## Leg selection uses market probability, not the model's (changed 2026-09-12)
+
+`buildSlip` ranked candidates by `model_prob` and scored slips by the product of model
+probabilities. Both now use `market_prob`, the de-vigged market probability the slate
+already stores. `scripts/betting-research/market_ref.js` measured why, over 25k legs,
+**within** each odds band (so the comparison is not just favourites vs longshots):
+
+| tippmix band | top quartile by `model_prob` | bottom quartile | top by `market_prob` | bottom |
+|---|---|---|---|---|
+| 1.3–2.0 | −3.04% | **+0.75%** | **−0.61%** | −4.48% |
+| 2.0–3.2 | −7.25% | **−2.47%** | **−3.72%** | −8.40% |
+| 3.2–5.0 | −12.74% | **−10.73%** | **−5.71%** | −18.23% |
+
+The model's ranking is inverted in all three bands — the legs it likes most return the
+least. The market's ranking points the right way in all three. This is the same inversion
+`vs_human.js` found on whole-match selection, now shown to apply *inside* the slip
+builder's own candidate pool.
+
+**The model's probability is still displayed, it just no longer decides.** The reply keeps
+the `modell X% · piac Y%` line, because a user comparing the two is information. A missing
+`market_prob` falls back to `1/odds`, never to `model_prob`.
+
+**The displayed hit chance was also wrong, and by a growing margin.** `Bejovesi esely` and
+the saved `bet_slips.hit_prob` were the product of model probabilities. On the real 145-leg
+slate the old scorer overstated its own slips' chances by **11.5% at 3x rising to 41.3% at
+100x**. Since `Bet Settlement` measures the realized win rate, it would have been measuring
+it against a number the builder never actually believed. Expected value improved at every
+target too (3x: 0.9241 → 0.9766; 20x: 0.8611 → 0.9227; 100x: 0.7870 → 0.8390), measured
+with market probabilities on both sides.
+
+**Verified**, all against the code read out of the deployed workflow JSON, not a copy:
+`scorer_switch_test.js` (66 checks — the switch changes the chosen legs on all 6 targets
+of the real slate, every invariant holds, `1/odds` fallback, and a decoy leg the model
+rates 90% is correctly rejected in favour of two the market rates higher);
+`slip_save_test.js` (140 checks — `/help` and `/slate` still character-identical to the
+pre-change code, slip reply structure unchanged, every reply inside Discord's 2000-char
+limit, displayed chance equals saved `hit_prob`); `slip_test.js`, `settle_test.js` (79) and
+`settle_wf_test.js` (75) unchanged and passing.
+
+**Not yet run as an n8n execution** — the deployed instance still carries the old node code.
+See the handover steps in the chat response; the workflow file in this repo is ahead of the
+instance until it is pushed.
 
 ## News: it excludes, it does not adjust
 
@@ -416,3 +465,29 @@ guard added in `57a0b08` is what made the difference.
 The same `curl -s` trap bit the local research scripts on the same day: without `-f`,
 curl writes the 489-byte HTML error page as a `.csv` and exits 0, so the failure only
 surfaces at the parser. See `scripts/betting-research/README.md`.
+
+## Results tracking lives in a third workflow (added 2026-09-12)
+
+`Clear Slate` wipes the table every morning and the `/szelveny` reply went only to Discord,
+so the system kept **no record of its own recommendations** and the win rate was not
+measurable at all. [Bet Settlement.md](Bet%20Settlement.md) fixes that: `Slip Builder` now
+saves every issued slip to `bet_slips` / `bet_slip_legs` (after `Respond`, so Discord's
+3-second deadline is untouched), and a daily workflow settles them against
+football-data.co.uk results.
+
+`Build Response` changed in exactly one way — it emits `_slip` alongside `message`. **The
+reply text is byte-identical** to before, checked against the pre-change code on 7 command
+variants.
+
+Two things from that build that apply back to *this* workflow:
+
+- **`www.football-data.co.uk` now returns `302` to the bare host** (observed 2026-09-12,
+  empty body + `Location`). The two-host fallback in `Config` absorbs it — the bare host
+  serves a 200 — so nothing here needs changing, but note this workflow has **not been run
+  since**. It also means `curl -sf` in local scripts writes a 0-byte file and exits 0;
+  use `curl -sfL`.
+- **The `ALIAS` table in `Generate Legs` is now shared**, extracted verbatim to
+  `scripts/betting-research/teams.js`. A hand-copied version of it in the settlement code
+  came out at 67 of 122 entries and silently dropped 5 Espanyol legs
+  (football-data spells it `Espanol`). `settle_test.js` now fails if the two copies
+  diverge, so **a new team has to be added in both places**.

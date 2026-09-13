@@ -15,7 +15,9 @@ mkdir -p data && cd data
 # Megfigyelve 2026-09-08: www 503 (Retry-After: 205), bare 200 (999/1000 kvota).
 fetch() {  # fetch <url> <kimeneti fajl>
   for h in www.football-data.co.uk football-data.co.uk; do
-    curl -sf -A "Mozilla/5.0" -o "$2" "https://$h/mmz4281/$1" && return 0
+    # -L KELL: a www hoszt 2026-09-12 ota 302-t ad a bare hosztra, es -L nelkul
+    # a curl 0 bajtos fajlt ir es 0-val ter vissza (a -f nem fog meg egy 302-t).
+    curl -sfL -A "Mozilla/5.0" -o "$2" "https://$h/mmz4281/$1" && return 0
   done
   echo "  nem sikerult: $1" >&2; rm -f "$2"; return 1
 }
@@ -24,7 +26,7 @@ for S in 2526 2627; do for L in E0 D1 SP1 I1 F1; do
 done; done
 ```
 
-A `curl -sf` a `-f` miatt hibakoddal tér vissza 503-ra, igy a fallback elsul.
+A `curl -sfL` a `-f` miatt hibakoddal tér vissza 503-ra, igy a fallback elsul.
 Enelkul a 489 bajtos HTML hibaoldal `.csv` neven landolna, es a parser ott hasalna el,
 nem a letoltesnel — ez egy debugolasi kort mar elvitt.
 
@@ -174,3 +176,129 @@ node slip_proof.js
 edge instead of the book. Under that data more legs looked better, appearing to contradict
 the margin theory. Margin means `fair / (1 + margin)` — odds **below** fair. If a result
 here ever suggests more legs beat fewer, check this first.
+
+## Settlement scripts
+
+Added while building `workflows/Bet Settlement.json` — the workflow that measures whether
+the slips actually win.
+
+| file | what it does |
+|---|---|
+| `teams.js` | The `ALIAS` team-name table + `norm()`, extracted **verbatim** from the `Generate Legs` node. Shared by `settle.js` so there is one table, not two. |
+| `settle.js` | Leg outcome from a final score, team-name matching against the CSV, accumulator settlement, and the win-rate/ROI summary. Identical to the `Settle Legs` node. |
+| `settle_test.js` | 79 checks: every market, the four statuses, malformed input, and a real-data run over the 2026-09-08 slate snapshot. |
+| `settle_wf_test.js` | 76 checks against the **actual** `Bet Settlement.json` node code (read out of the workflow JSON): download failures, one host down, one league down, multi-item, malformed legs, idempotency. |
+| `slip_save_test.js` | 128 checks on `Slip Builder`'s `Build Response`. Proves the `_slip` output did not change the Discord reply — compares `message` character-for-character against the git HEAD version. |
+
+```bash
+node settle_test.js
+```
+
+### What these established
+
+- **`Espanyol` vs `Espanol`.** football-data.co.uk spells Espanyol without the `y`. The
+  first version of `settle.js` hand-copied the alias table and got **67 of the 122
+  entries**, missing that one — and the substring fallback cannot bridge `espanyol` →
+  `espanol`, so **5 legs went silently unresolvable on real data**. Hence `teams.js`:
+  one table, and `settle_test.js` fails if it drifts from the node's copy.
+- **Real-data settlement is provably correct**, by arithmetic rather than by inspection:
+  over the 145-leg snapshot, `h2h` home+draw+away wins = 8+9+12 = 29 = the match count
+  (exactly one outcome per match must win), and over+under = 21+8 = 29 likewise. A
+  mis-settled leg breaks those identities, which is why the test asserts them instead of
+  just counting hits.
+- **`still_open` and `unresolvable` must stay separate.** Waiting for a CSV refresh and a
+  broken team-name match look identical if you collapse them, and the second one would
+  quietly corrupt the win rate. A leg is **never** defaulted to lost.
+- **`curl -sf` is not enough any more.** As of 2026-09-12 `www.football-data.co.uk`
+  returns **302** to the bare host. A 302 is not a 4xx/5xx, so `-f` does not trip: curl
+  writes a **0-byte file** and exits 0, and the failure only surfaces at the parser. Use
+  `curl -sfL`. This is the second time this shape of bug has cost a cycle here — the first
+  was the 489-byte HTML error page landing as a `.csv`.
+
+## Profitability review (2026-09-12)
+
+Six scripts, one question each, asked after the settlement workflow made the win rate
+measurable: *where could the slips actually gain?* All run from `data/`, over four full
+seasons plus the current one (7228 matches, 6228 with a Pinnacle closing price). Pinnacle
+closing is used as the fair probability throughout — it is the best public estimate, and
+the model is measured against it, not the other way round.
+
+| file | what it does |
+|---|---|
+| `odds_loader.js` | Shared loader: every odds column (opening + closing, 1X2 + O/U 2.5, Pinnacle/Avg/Max/B365) and `tippmixRatio()` verbatim from `Generate Legs`. Run directly for a coverage check. |
+| `tippmix_cost.js` | Cost of one leg at Tippmix-estimated prices by odds band, the retained-value table by leg count, and a day-pool slip simulation. |
+| `market_ref.js` | Which market reference to de-vig from; the model+market blend weight; the O/U 2.5 ranking check; leg ranking by `model_prob` vs market probability within a band. |
+| `composition_sensitivity.js` | The composition result under three Tippmix price assumptions; the existing builder at caps 5 → 1.7; band × leg type; per season; opening vs closing. |
+| `same_match.js` | Joint frequency of same-match outcome pairs against the product of their marginals. |
+| `scorer_ab.js` | The whole `buildSlip` logic on real day pools, `model_prob` scorer vs market-probability scorer, leg-level realized ROI. |
+| `scorer_switch_test.js` | 66 checks on the **deployed** `Build Response` node code after the switch to market probability. Run it from this directory. |
+
+### What these established
+
+- **The model carries no information beyond the market.** Blending
+  `p = (1−w)·market + w·model`, log-loss is minimised at **w = 0** for 1X2 and for O/U,
+  against Pinnacle *and* against the plain average (0.9626 → 1.0042 as w goes 0 → 1).
+  Every 0.1 of model weight makes it worse. Tuning `XI`/`RHO`/shrinkage cannot close a
+  0.04 log-loss gap; the model's probabilities should not drive any decision.
+- **The inversion holds on O/U 2.5 too**, and in every season: model EV > 0 picks
+  return −8.6% vs −5.4% blind, and quartiles by model-market gap run −8.8% → −2.0%,
+  monotonic the wrong way. The "bet against the model" control is −2.2% — better than
+  blind, still negative, and mostly a repackaged favourite-longshot bias.
+- **`model_prob` in the slip scorer picks the wrong legs.** Within every tippmix odds
+  band (1.3–2, 2–3.2, 3.2–5; 25k legs), the top quartile by `model_prob` returns *less*
+  than the bottom quartile (−3.0% vs +0.8%, −7.3% vs −2.5%, −12.7% vs −10.7%). The top
+  quartile by market probability returns *more* than its bottom quartile (−0.6% vs −4.5%,
+  −3.7% vs −8.4%, −5.7% vs −18.2%). `scorer_ab.js` runs the full builder both ways; at
+  ~500 legs per cell it cannot resolve the difference (±5–7%), so the quartile table
+  above is the evidence, not the A/B.
+  **Applied 2026-09-13** to `slip.js` and the deployed `Build Response` node: `_q`,
+  `jointP`, the single-leg fallback and the last-resort branch all use `market_prob`,
+  falling back to `1/odds` and never to `model_prob`. The MAGAS bonus was removed with
+  it (KOZEPES beats MAGAS in two of three bands); excluding ALACSONY was kept (−8% to
+  −19% in every band). The model's probability is still shown in the reply, it just no
+  longer decides. Side effect worth its own line: the displayed hit chance and the saved
+  `bet_slips.hit_prob` were model-based and **overstated the real chance by 11.5% at 3x
+  rising to 41.3% at 100x** on the real slate — the settlement workflow would have been
+  scoring the win rate against a number the builder never believed.
+- **Max vs Pinnacle vs Avg as the de-vig reference makes no difference**: log-loss
+  0.9625 / 0.9626 / 0.9631, the class label changes on 8–10% of legs with no ROI
+  difference. The "MaxC is not a real price" trap is about *prices*, not probabilities —
+  `Generate Legs` can stay as it is.
+- **Leg cost is strongly odds-dependent.** At tippmix-estimated prices vs Pinnacle fair,
+  1.3–2.5 costs −1.9% to −3.5% per leg (realized ≈ 0%, n=5148); 4–5 costs −9% (realized
+  −15%); 6+ costs −13% (realized −32%). Same shape in each of the four seasons. This is
+  favourite-longshot bias at the average book, amplified by `tippmixRatio()`.
+- **So the flat-8% margin in `acca.js` is wrong, and fewest-legs is only conditionally
+  right.** With the measured ratio, retained value is flat between 2 and 5 legs at
+  5x–10x and *rises* with legs at 20x+ (20x: 2 legs 83% vs 5 legs 86%; 50x: 2 legs 77%
+  vs 6 legs 82%). With Tippmix = market average the old rule holds. The result hinges
+  on the 20-point calibration, so **do not change the builder on it — measure more
+  Tippmixpro prices first**, by band and separately for O/U. The @5 cap is right under
+  every assumption (legs above 4.0 cost 9–13% whatever the ratio).
+- **1X2 favourites beat O/U legs in every band**: O/U EV(fair) is 1–1.5pp worse per leg
+  (O/U overround 5.0% vs 4.2–4.9% for 1X2), and `tippmixRatio` is not calibrated on
+  O/U at all. Under 2.5 is the worst leg type (−4.2% realized at 1.3–1.6, −12.8% at
+  2.5–3.2). Draws at 2.5–3.2 are the cheapest leg in that band (−4.4% fair, −5.8%
+  realized).
+- **Same-match pairs are strongly correlated, and the book prices that in. Closed
+  2026-09-13.** Draw + under 2.5 has joint/product 1.55 (+36% EV *if* the price were a
+  straight multiply), home + over 2.5 for 1.6–3.2 favourites 1.20. Tippmixpro does allow
+  two legs from one fixture, but quotes a combined price, not the product: measured live,
+  product **9.16** → quoted **5.25**, i.e. 57.3% of the product, a **42.7% deduction**
+  against a 1.55× correlation gain. Net **−21.9%** versus betting the legs separately.
+  The `usedMatches` one-leg-per-match rule stays, now measured rather than assumed.
+- **No timing edge**: opening vs closing average prices differ by 0.4–0.6pp ROI at ≤4.0
+  in favour of opening, the other way above it. Not a strategy.
+- **Lowering `minOdds` below 1.30 gains nothing**: 1.1–1.3 home legs cost the same as
+  1.3–1.6 (−1.4% fair, −0.5% realized).
+
+### A trap in the day-pool simulations
+
+Maximising joint probability at a fixed target product is the same as maximising EV, and
+the EV here is `p_pinnacle × (AvgC × tippmixRatio)`. So the search selects the legs where
+the average book disagrees most with Pinnacle — and the tippmix price is an *estimate*
+built from that same average. The `EV(fair) ≥ 1.00` of the max-EV strategy in
+`tippmix_cost.js` §6, and the 0.986 of the fewest-legs strategy, are that artefact, not
+an edge. Use the band tables (no selection) for expected values and realized leg ROI for
+selection tests. The same winner's curse is why the empirical simulation prefers fewer
+legs while the analytic curve does not.

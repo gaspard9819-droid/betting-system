@@ -66,8 +66,34 @@ show('csak vetozott', buildSlip(pool.filter(l=>l.news_flag==='veto'),{target:10}
 show('cel 1.0', buildSlip(pool,{target:1.0}));
 console.log('\n=== RESZLETES: /szelveny 10 ===');
 const d = buildSlip(pool,{target:10});
-d.legs.forEach((l,i)=>console.log(`  ${i+1}. ${l.match_name.padEnd(24)} ${l.label.padEnd(15)} @ ${l.tippmix_odds.toFixed(2)}  modell ${(l.model_prob*100).toFixed(0)}%  ${l.confidence}${l.news_flag==='warn'?' ⚠':''}`));
+d.legs.forEach((l,i)=>console.log(`  ${i+1}. ${l.match_name.padEnd(24)} ${l.label.padEnd(15)} @ ${l.tippmix_odds.toFixed(2)}  piac ${(l.market_prob*100).toFixed(0)}% / modell ${(l.model_prob*100).toFixed(0)}%  ${l.confidence}${l.news_flag==='warn'?' ⚠':''}`));
 const p = d.legs.reduce((a,l)=>a*l.tippmix_odds,1);
-const jp = d.legs.reduce((a,l)=>a*l.model_prob,1);
+// A jointP a PIACI valoszinusegek szorzata (2026-09-12 ota), nem a modelle.
+const jp = d.legs.reduce((a,l)=>a*l.market_prob,1);
 console.log(`  KEZI ELLENORZES: ${d.legs.map(l=>l.tippmix_odds.toFixed(2)).join(' × ')} = ${p.toFixed(3)}`);
-console.log(`  esely kezzel: ${d.legs.map(l=>(l.model_prob*100).toFixed(0)+'%').join(' × ')} = ${(jp*100).toFixed(2)}%  (kb. minden ${Math.round(1/jp)}. szelveny)`);
+console.log(`  esely kezzel (PIACI p): ${d.legs.map(l=>(l.market_prob*100).toFixed(0)+'%').join(' × ')} = ${(jp*100).toFixed(2)}%  (kb. minden ${Math.round(1/jp)}. szelveny)`);
+console.log(`  egyezik a buildSlip jointP-jevel: ${Math.abs(jp-d.jointP)<1e-9?'OK':'HIBA ('+d.jointP+')'}`);
+
+// === A PIACI VALOSZINUSEG DONT, NEM A MODELLE ===
+// A fenti pool market_prob-ja a model_prob 98%-a, igy a ket rangsor majdnem
+// azonos - abbol nem latszana a valtas. Itt SZANDEKOSAN szembeallitjuk oket:
+// ket azonos oddsu lab, ahol a modell az egyiket, a piac a masikat szereti.
+console.log('\n=== A PIACI VALOSZINUSEG DONT (nem a modell) ===');
+const mk = (id, mp, kp) => ({ leg_id:id, event_id:id, match_name:`Teszt ${id}`, league:'Teszt',
+  market:'h2h', selection:'home', label:'1 (hazai)', model_prob:mp, market_prob:kp,
+  tippmix_odds:2.00, confidence:'KOZEPES', news_flag:'ok', news_note:'' });
+// Mindketto @2.00, a cel 4x -> pont ket lab kell, harombol valaszt kettot.
+// A "csali" labat a modell szereti a legjobban, a piac a legkevesbe.
+const clash = [ mk('A', 0.90, 0.40), mk('B', 0.30, 0.55), mk('C', 0.31, 0.54) ];
+const rc = buildSlip(clash, { target: 4.0, maxLegs: 2, minLegs: 2 });
+const chosen = rc.ok ? rc.legs.map(l=>l.leg_id).sort().join('') : 'NINCS';
+console.log(`  harom @2.00 lab, cel 4x -> valasztott: ${chosen}`);
+console.log(`  -> ${chosen==='BC' ? 'OK (a ket legjobb PIACI valoszinuseget valasztotta)' : 'HIBA: a modell csalijat (A) valasztotta'}`);
+console.log(`  jointP = ${rc.ok?rc.jointP.toFixed(4):'-'}  (piaci: 0.55 × 0.54 = ${(0.55*0.54).toFixed(4)}, modell lenne: 0.30 × 0.31 = ${(0.30*0.31).toFixed(4)})`);
+
+// Hianyzo market_prob: 1/odds a visszaeses, sosem a model_prob.
+const noMkt = [ { ...mk('D', 0.90, 0.40), market_prob: null },
+                { ...mk('E', 0.10, 0.50), market_prob: undefined } ];
+const rn = buildSlip(noMkt, { target: 4.0, maxLegs: 2, minLegs: 2 });
+console.log(`  hianyzo market_prob -> ${rn.ok ? 'megoldas van, jointP '+rn.jointP.toFixed(4)+' (1/2.00 × 1/2.00 = 0.2500)' : 'NINCS MEGOLDAS'}`);
+console.log(`  -> ${rn.ok && Math.abs(rn.jointP-0.25)<1e-9 ? 'OK (1/odds visszaeses, nem a model_prob)' : 'HIBA'}`);
