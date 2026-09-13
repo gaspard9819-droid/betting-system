@@ -343,6 +343,19 @@ cd data && curl -sfL -A "Mozilla/5.0" -o fresh/fixtures.csv https://www.football
 - **Live effect is small**: re-pricing the 145-leg slate moved prices +0.44% on average
   (+1.48% 1X2, −1.13% O/U), but changed the chosen legs at every target tested.
 
+**Confirmed live on execution 137** (2026-09-13 13:21): 85 legs, clean table swap, zero
+errors, and all 85 prices matching the new curve. 21 legs differ by 1 forint from a
+hand-recomputation because the node multiplies the *unrounded* market average while the
+stored `market_avg_odds` is rounded — inside the rounding band, not a defect.
+
+**A measurement trap that run exposed.** Scored against the collected prices, the new
+slate looked *worse* (3.93% vs 3.22% mean absolute error). It was not the curve: the
+prices were collected around 08:00 and the run fetched odds at 13:21, by which point 60
+of 85 market prices had moved, 1.34% on average and up to 9.9%. Holding the market price
+fixed, the new curve wins 2.46% to 3.21% (1X2: 2.53% vs 3.96%). **Only compare prices
+captured at the same moment** — which is why `tippmix_direct.js` reads one specific
+execution's output rather than whatever the slate holds now.
+
 **What is still unmeasured:** O/U has 18 direct pairs and none above 3.6; `btts` entirely
 (the API does not serve it; unknown markets fall back to the 1X2 curve); and whether the
 ratio drifts over time. The 1X2 fit is the solid one at t=−9.23. Two long under-2.5 legs

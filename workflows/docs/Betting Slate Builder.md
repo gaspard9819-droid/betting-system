@@ -514,6 +514,46 @@ it is the one to extend with more prices.
 does not serve anyway; an unknown market falls back to the 1X2 curve). The 1X2 fit is the
 solid one at t = −9.23.
 
+### Confirmed on a live run, and one thing it taught about measuring this
+
+Execution 137 (2026-09-13 13:21, manual) was the first run on the new curve. Item counts
+line up end to end: `Clear Slate` deleted exactly the 85 rows snapshotted beforehand,
+`Generate Legs` emitted 86 (85 legs + the summary row), and 85 were written. Zero
+unmatched teams, zero fetch errors, zero odds errors, 342 credits left. The table came
+back with 85 rows and **no id overlap** with the pre-run snapshot, i.e. a clean swap.
+
+All 85 prices match the new curve. 21 of them differ by exactly 1 forint from a
+hand-recomputation, because the node multiplies the **unrounded** market average while the
+stored `market_avg_odds` is rounded to 2 decimals. Every one of those falls inside the
+rounding band — not a defect.
+
+**The price comparison against real Tippmixpro odds looked worse on this run, and the
+reason is a measurement trap worth remembering.** Scored against the collected prices the
+new slate came out at 3.93% mean absolute error versus the old slate's 3.22% — apparently
+a regression. It is not: the collected prices are from around 08:00 and this run fetched
+odds at 13:21, by which time **60 of 85 market prices had moved, by 1.34% on average and
+up to 9.9%**. The comparison was measuring the curve *and* five hours of market drift
+together.
+
+Holding the market price fixed (both curves applied to the same 08:00 odds, scored against
+the same 08:00 collected prices) the new curve is better, which is what the calibration
+claimed:
+
+| curve | mean | mean abs error | 1X2 | O/U |
+|---|---|---|---|---|
+| old | 100.43% | 3.21% | 3.96% | 2.09% |
+| **new** | **100.24%** | **2.46%** | **2.53%** | 2.34% |
+
+**So a price comparison is only valid against odds captured at the same time.** Any future
+calibration must pair prices from one moment, which is what `tippmix_direct.js` does by
+reading a specific execution's output.
+
+**O/U is the one cell where the old curve scores marginally better** (2.09% vs 2.34% mean
+absolute error), and the flat curve is still the right choice: across those 18 pairs the
+old curve is biased **+1.07%** while flat is unbiased at +0.09%. Legs multiply in a slip,
+so a systematic offset compounds — 1% per leg is 3% on a three-legger — while scatter
+averages out. The 0.25pp of extra scatter buys away 1pp of bias.
+
 ## A full PUT wipes credentials — always merge them back
 
 The workflow JSON in this repo deliberately carries **no `credentials` blocks**, so a
