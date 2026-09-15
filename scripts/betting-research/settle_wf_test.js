@@ -431,5 +431,73 @@ console.log('\n9) IDEMPOTENCIA: ketszer futtatva ugyanaz');
      'a mar lezart ' + closedLegs.length + ' labat a leg_count-bol szamolja');
 }
 
+// =========================================================
+console.log('\nJ) kupa-labak: elszamolhatatlan, de nem ragad nyitva');
+// =========================================================
+// A BL/EL/KL labaknak nincs eredmeny-forrasa (a football-data.co.uk csak
+// bajnoksagokat ad). A veszely nem az, hogy rosszul szamoljuk el, hanem hogy
+// OROKRE nyitva maradnak: a 'still_open' agon minden futas ujraprobalna, a
+// nyitott szelvenyek szama csendben nőne, es a statisztika ugy nezne ki,
+// mintha meg varnank valamire, ami sosem jon meg.
+{
+  const cfg = [], http = [];
+  const kupaLeg = {
+    id: 9001, slip_id: 'slip-kupa-teszt', leg_id: 'ev1-h2h-home',
+    match_name: 'Milan vs Benfica', league: 'EL, csoportkör',
+    kickoff: '2026-09-01T19:00:00.000Z',        // joval a teszt "most"-ja elott
+    market: 'h2h', selection: 'home', label: '1 (hazai)',
+    odds: 2.1, model_prob: null, market_prob: 0.47,
+    confidence: 'KUPA', status: 'open', reason: '', score: '',
+  };
+  const kupaSlip = {
+    id: 9000, slip_id: 'slip-kupa-teszt', issued_at: '2026-08-30T10:00:00.000Z',
+    target: 2, total_odds: 2.1, leg_count: 1, stake: 1000, hit_prob: 0.47,
+    capped_relaxed: 'nem', status: 'open', open_reason: 'legs_pending',
+    payout: 0, profit: 0,
+  };
+
+  const out = runSettle({ cfg, http, slips: [kupaSlip], legs: [kupaLeg] });
+  const lu = out.leg_updates.find(u => u.leg_id === 'ev1-h2h-home');
+  ok(lu && lu.status === 'unsettleable',
+     'a kupa-lab unsettleable, nem still_open', lu && lu.status);
+
+  const su = out.slip_updates.find(u => u.slip_id === 'slip-kupa-teszt');
+  ok(su && su.status === 'unsettleable',
+     'a szelveny is unsettleable lesz', su && su.status);
+  // EZ a lenyeg: ha 'open'-kent irnank vissza, a Get Open Slips holnap ujra
+  // behuzna, es a ciklus sosem allna meg.
+  ok(su && su.status !== 'open',
+     'NEM irjuk vissza open-kent (kulonben orokre ujraprobalna)');
+  ok(su && su.settled_at,
+     'a settled_at ki van toltve - az elszamolas megtortent, csak nem merheto');
+
+  // A bukott lab erosebb: egy kupa-labas szelveny, aminek egy masik labja
+  // mar bukott, BUKOTT - igy a kupa-labas szelvenyek egy resze merheto marad.
+  const vesztoLeg = Object.assign({}, kupaLeg, {
+    id: 9002, leg_id: 'ev2-h2h-home', match_name: 'Arsenal vs Chelsea',
+    league: 'Premier League', confidence: 'MAGAS', selection: 'away',
+  });
+  const ketLabas = Object.assign({}, kupaSlip, { slip_id: 'slip-kupa-vegyes', id: 9003, leg_count: 2 });
+  const legs2 = [
+    Object.assign({}, kupaLeg, { id: 9004, slip_id: 'slip-kupa-vegyes' }),
+    Object.assign({}, vesztoLeg, { id: 9005, slip_id: 'slip-kupa-vegyes' }),
+  ];
+  const out2 = runSettle({ cfg, http, slips: [ketLabas], legs: legs2 });
+  const su2 = out2.slip_updates.find(u => u.slip_id === 'slip-kupa-vegyes');
+  // A Premier League lab eredmenye nincs meg (nincs http adat), tehat
+  // still_open - a szelveny igy unsettleable, nem lost. A sorrend akkor
+  // szamit, ha a masik lab MAR bukott; azt a settle_test.js fedi le.
+  ok(su2 && su2.status === 'unsettleable',
+     'vegyes szelveny (kupa + rendes, eredmeny nelkul): unsettleable', su2 && su2.status);
+
+  // A jelentes ne nyelje le: ha nem irjuk ki, ugy tunne, kevesebb
+  // szelvenyt adtunk ki, mint amennyit valojaban.
+  const rep = runReport(out, [Object.assign({}, kupaSlip, { status: 'unsettleable' })]);
+  ok(rep.stats.unsettleable === 1, 'a summarize kulon szamolja', JSON.stringify(rep.stats));
+  ok(/nem elszamolhato/.test(rep.message), 'a Discord-jelentes emliti oket');
+  ok(rep.stats.win_rate === null || rep.stats.closed === 0,
+     'az elszamolhatatlan nem szamit bele a nyeresi aranyba');
+}
+
 console.log('\n' + (fail === 0 ? 'MINDEN TESZT ATMENT' : fail + ' BUKOTT') + '  (' + pass + ' ok / ' + (pass + fail) + ')');
 process.exit(fail ? 1 : 0);

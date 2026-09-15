@@ -291,6 +291,69 @@ EL: 306343242866847744
 KL: 306340432262688768
 ```
 
+## Nemzetközi kupák a slate-en (2026-09-16)
+
+`cups_fetch.js` — a BL/EL/KL meccsek felvétele a Tippmixpro feedből.
+
+**Miért kellett:** a Slate Builder öt hazai bajnokságot ismer, mert a modellje a
+football-data.co.uk CSV-iből épül, és azok csak bajnokságokat adnak. Egy BL-meccs
+viszont **két különböző liga** csapatát hozza össze (Bayern = D1, Arsenal = E0), a
+`findTeam` pedig egy ligán belül keres — a meccs a `tooThin` listába esne. A The Odds
+API sem kínál kupát.
+
+Következmény: szerda-csütörtökön 10-20 meccs kimaradt. 2026-09-16-án **18 EL-meccs**
+volt, és a szelvényépítő 2 La Liga-meccsből próbált válogatni — 2,2x-es célra 1 lábas
+„szelvényt" adott, mert 2 lábbal nem jött ki semmi.
+
+```bash
+node cups_fetch.js            # száraz futás
+node cups_fetch.js --write    # beírja a slate-be
+```
+
+**Az eredmény ugyanazon a napon:** 126 láb, 18 meccsből, és a 2,2x-es cél most
+`1,44 × 1,40 = 2,02` két lábbal — az egyik boostolt La Liga, a másik EL-kupa.
+
+### Mit tud és mit nem a kupa-láb
+
+A szelvényépítő a **piaci valószínűség** alapján választ (a modell rangsora mérések
+szerint fordított), és azt egyetlen könyv árából is ki lehet számolni de-vigeléssel.
+Ezért nem kell modell a kupákhoz. Ami hiányzik, és amit a kimenet **jelez**:
+
+| mező | kupa-lábon |
+|---|---|
+| `model_prob` | `null` — a Discord-válasz „🏆 nemzetközi kupa (nincs modell)" sort ír |
+| `confidence` | `KUPA` — nem `ALACSONY` (az kizárná), nem `MAGAS` (nincs mihez mérni) |
+| `best_odds` | a Tippmix saját ára — egy könyv van, tehát nincs line shopping |
+| `tippmix_odds` | **valódi ár**, nem a `tippmixRatio()` becslése |
+
+**Az egy-könyves de-vig korlátja:** a margót arányosan vonjuk le, ami azt feltételezi,
+hogy a könyv minden kimenetelre ugyanakkora felárat tesz. A valóságban a favorit-oldal
+jellemzően jobban meg van vágva (favourite-longshot bias). A hatás a rangsorra kicsi
+(egy meccsen belül monoton), és a szelvényépítő csak rangsorra használja — de a
+`market_prob` abszolút értéke itt kevésbé pontos, mint a top5-ön.
+
+### Az elszámolás: `unsettleable`
+
+A Bet Settlement a football-data.co.uk CSV-iből dolgozik, amik **kupákat nem
+tartalmaznak**. A naiv viselkedés az lett volna, hogy a kupa-láb a `no_csv_for_league`
+ágon `still_open` marad — amit az elszámoló **várakozásnak** ért, tehát örökre
+újrapróbálná, a szelvény sosem zárulna le, és a nyitott szelvények száma csendben nőne.
+
+Ezért van új végállapot: **`unsettleable`**, `cup_no_result_source` indokkal.
+
+- A `Get Open Slips` csak `status = open`-t húz, tehát az `unsettleable` szelvény
+  **kiesik a következő futásból** — nem próbálja újra.
+- A **bukott láb erősebb**: ha egy másik láb már bukott, a szelvény `lost`, nem
+  `unsettleable`. Így a kupa-lábas szelvények egy része mérhető marad.
+- A statisztika (nyerési arány, ROI) **kihagyja** őket, de a jelentés **kiírja** a
+  számukat — különben úgy tűnne, kevesebb szelvényt adtunk ki.
+
+`settle_wf_test.js` J) blokkja ezt a **deployolt** node ellen teszteli, és két valódi
+hibát fogott: az `unsettleable` láb nem került a `leg_updates`-be (tehát nyitva maradt
+volna a táblában), és a `Build Report` **saját `summarize` másolata** nem kapta meg a
+mezőt. Két kézzel tartott kópia mindig elcsúszik — ugyanaz a lecke, mint az ALIAS
+táblánál.
+
 ## Oddspiramis — megmérve, nem éri meg (2026-09-16)
 
 `pyramid_check.js` — a kérdés: a Tippmixpro **Oddspiramis** akciója a sok lábat

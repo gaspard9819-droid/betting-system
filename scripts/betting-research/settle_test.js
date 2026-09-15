@@ -194,7 +194,7 @@ eq(S.settleSlip(slip, []), { status: 'open', reason: 'no_legs' }, 'nincs lab');
 // =========================================================
 console.log('E) summarize');
 // =========================================================
-eq(S.summarize([]), { closed: 0, open: 0, won: 0, lost: 0, win_rate: null,
+eq(S.summarize([]), { closed: 0, open: 0, unsettleable: 0, won: 0, lost: 0, win_rate: null,
                       staked: 0, returned: 0, profit: 0, roi_pct: null },
    'ures lista -> null arany, nem 0%');
 eq(S.summarize([{ status: 'open', stake: 1000 }]).win_rate, null,
@@ -207,9 +207,42 @@ const mixed = [
   { status: 'lost', stake: 1000, payout: 0 },
   { status: 'open', stake: 1000 },
 ];
-eq(S.summarize(mixed), { closed: 3, open: 1, won: 1, lost: 2, win_rate: 33.3,
+eq(S.summarize(mixed), { closed: 3, open: 1, unsettleable: 0, won: 1, lost: 2, win_rate: 33.3,
                          staked: 3000, returned: 3000, profit: 0, roi_pct: 0 },
    '1/3 nyeres, nullszaldo');
+
+// --- kupa-labak: elszamolhatatlan, de nem ragad nyitva ---
+// A BL/EL/KL labaknak nincs eredmeny-forrasa (a football-data.co.uk csak
+// bajnoksagokat ad). Vegallapot kell, nem varakozas: kulonben a szelveny
+// orokre nyitva maradna, es a nyitott szelvenyek szama csendben nőne.
+const kupaLeg = { kickoff: '2026-09-16T19:00:00.000Z', league: 'EL, csoportkör',
+                  match_name: 'Milan vs Benfica', market: 'h2h', selection: 'home',
+                  confidence: 'KUPA' };
+const later = '2026-09-17T12:00:00.000Z';
+eq(S.settleLeg(kupaLeg, {}, { now: later }).status, 'unsettleable',
+   'kupa-lab: unsettleable, nem still_open');
+eq(S.settleLeg(kupaLeg, {}, { now: later }).reason, 'cup_no_result_source',
+   'kupa-lab: latszik az ok is');
+// A kezdes elott meg a kupa-lab is "meg nem jatszottak" - a sorrend szamit.
+eq(S.settleLeg(kupaLeg, {}, { now: '2026-09-16T12:00:00.000Z' }).status, 'still_open',
+   'kupa-lab a kezdes elott: meg nyitott, nem unsettleable');
+
+eq(S.settleSlip({ stake: 1000, total_odds: 2, leg_count: 2 },
+     [{ status: 'won' }, { status: 'unsettleable' }]).status, 'unsettleable',
+   'egy kupa-lab elszamolhatatlanna teszi a szelvenyt');
+// A bukott lab ELOBBRE valo: ha egy lab mar bukott, a szelveny bukott,
+// barmi is tortent a kupa-labbal. Igy a kupa-labas szelvenyek egy resze
+// meg merheto marad.
+eq(S.settleSlip({ stake: 1000, total_odds: 2, leg_count: 2 },
+     [{ status: 'lost' }, { status: 'unsettleable' }]).status, 'lost',
+   'a bukott lab erosebb az elszamolhatatlannal');
+
+eq(S.summarize([
+     { status: 'won', stake: 1000, payout: 2000 },
+     { status: 'unsettleable', stake: 1000 },
+   ]), { closed: 1, open: 0, unsettleable: 1, won: 1, lost: 0, win_rate: 100,
+         staked: 1000, returned: 2000, profit: 1000, roi_pct: 100 },
+   'az elszamolhatatlan nem torzitja a ROI-t, de latszik');
 
 // =========================================================
 console.log('F) VALOS adat: 2026-09-08 slate snapshot a letoltott CSV-k ellen');

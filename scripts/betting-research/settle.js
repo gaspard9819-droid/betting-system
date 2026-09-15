@@ -127,6 +127,20 @@ function settleLeg(leg, index, opts) {
   // A meccs ~2 ora, + tartalek. Elotte nincs mit elszamolni.
   if (now - ko < graceHours * 3600000) return { status: 'still_open', reason: 'not_finished' };
 
+  // A nemzetkozi kupak (BL/EL/KL) NEM szamolhatok el ebbol a forrasbol: a
+  // football-data.co.uk csak bajnoksagokat ad. Ezeket a labakat a
+  // cups_fetch.js teszi a slate-re, `confidence: 'KUPA'` jelolessel.
+  //
+  // Miert kulon status, es miert a liga-index ELOTT: a lenti
+  // `no_csv_for_league` agon a lab "still_open" maradna, amit az elszamolo
+  // varakozasnak ert - tehat ORORKE ujraprobalna, a szelveny sosem zarulna
+  // le, es a nyitott szelvenyek szama csendben none. Az "unsettleable"
+  // ezzel szemben vegallapot: egyszer kimondjuk, hogy ezt nem tudjuk
+  // megmerni, es tovabblepunk.
+  if (leg.confidence === 'KUPA') {
+    return { status: 'unsettleable', reason: 'cup_no_result_source' };
+  }
+
   const idx = index[leg.league];
   if (!idx) return { status: 'still_open', reason: 'no_csv_for_league' };
 
@@ -170,8 +184,18 @@ function settleLeg(leg, index, opts) {
 function settleSlip(slip, legResults) {
   const r = legResults;
   if (!r.length) return { status: 'open', reason: 'no_legs' };
+  // A vesztes lab MINDENT visz, meg egy elszamolhatatlan kupa-lab mellett is:
+  // egy bukott lab a szelvenyt bukottá teszi, barmi is tortent a tobbivel.
+  // Ezert all ez a vizsgalat az unsettleable ELOTT - igy a kupa-labas
+  // szelvenyek egy resze meg merheto marad.
   if (r.some(x => x.status === 'lost')) {
     return { status: 'lost', payout: 0, profit: -slip.stake };
+  }
+  // Elszamolhatatlan lab (kupa): nincs eredmeny-forrasunk hozza. Vegallapot,
+  // nem varakozas - kulonben a szelveny orokre nyitva maradna. A statisztika
+  // ezeket kihagyja, tehat a nyeresi arany nem torzul toluk.
+  if (r.some(x => x.status === 'unsettleable')) {
+    return { status: 'unsettleable', reason: 'cup_leg_no_result_source' };
   }
   // Egy feloldhatatlan lab megallitja az elszamolast: nem allithatjuk
   // nyertesnek a szelvenyt, amig egy labrol nem tudjuk, mi tortent.
@@ -192,12 +216,18 @@ function settleSlip(slip, legResults) {
 function summarize(slips) {
   const closed = slips.filter(s => s.status === 'won' || s.status === 'lost');
   const open = slips.filter(s => s.status === 'open');
+  // Az elszamolhatatlan (kupa-labas) szelvenyek KIMARADNAK a nyeresi
+  // aranybol es a ROI-bol: nem tudjuk, mi lett veluk, es egy ismeretlen
+  // kimenetel se nyeresnek, se veszteserol nem szamolhato. De KIIRJUK a
+  // szamukat - kulonben ugy tunne, hogy kevesebb szelvenyt adtunk ki.
+  const unsettleable = slips.filter(s => s.status === 'unsettleable');
   const won = closed.filter(s => s.status === 'won');
   const staked = closed.reduce((a, s) => a + s.stake, 0);
   const returned = closed.reduce((a, s) => a + (s.payout || 0), 0);
   return {
     closed: closed.length,
     open: open.length,
+    unsettleable: unsettleable.length,
     won: won.length,
     lost: closed.length - won.length,
     win_rate: closed.length ? Math.round(won.length / closed.length * 1000) / 10 : null,
