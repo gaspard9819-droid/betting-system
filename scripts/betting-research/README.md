@@ -480,17 +480,58 @@ Scoring the **shipped** curve against those 15 real prices:
 - **15 pairs is not a calibration.** This validates the *method*, not a new curve. The
   existing 45-pair fit stands until several days of pairs accumulate.
 
-**The 96-hour limit, which is why only 15 pairs.** The slate looks up to 96 hours ahead
-(it had 18–19 September fixtures); the feed's `highlighted-popular-matches` topic serves
-only the next ~2 days, capped at 200 matches. So only that day's fixtures pair. Raising
-`--limit` does not help — the window, not the count, is the constraint. Collecting daily
-still accumulates 15–20 pairs a day without solving this.
+**The 96-hour limit — solved the same afternoon.** The first run paired only 15 of 100
+legs: the slate looks 96 hours ahead, while the `highlighted-popular-matches` topic serves
+only ~2 days. Recording the browser on a league page
+(`/hu/fogadas/i/bajnoksag-lokacio/labdarugas/1/spanyolorszag/65/…`) gave the topic that
+does cover it:
 
-**A lead if it becomes worth chasing:** the `/sports#search` RPC exists but rejects the
-`apiVersion` sent here. Finding the right one means recording browser traffic again, the
-same way the topic shapes were found.
+```
+/sports/2901/hu/tournament-aggregator-groups-overview/<tournamentId>/default-event-info/BOTH/1380
+```
 
-**Not yet done:** nothing is scheduled, and no fresh calibration has been fitted.
+That returns a league's whole published fixture list. With the five league ids wired in,
+coverage went **15 → 75 pairs of 100 legs**. Two traps on the way: `tournament-odds` is
+the outright-winner market, not the fixtures; and Git Bash rewrites a leading-slash
+argument into a Windows path, so topic strings need `MSYS_NO_PATHCONV=1`.
+
+League ids live in `tippmix_feed.js`. If a season rollover stales one,
+`/sports/2901/hu/tournaments/1/<categoryId>` lists a country's leagues — categories are
+England 77, Spain 65, Germany 54, Italy 111, France 73. `--highlighted` keeps the old
+path, which needs no ids at all.
+
+### Scoring the shipped curve on 75 same-moment pairs (2026-09-15)
+
+| market | mean absolute error | n |
+|---|---|---|
+| O/U | 2.00% | 30 |
+| 1X2 | 3.21% | 45 |
+| all | **2.73%** | 75 |
+
+Consistent with the 2.31% the 45-pair calibration reported, on a wider sample.
+
+### Tippmixpro almost never beats the best available book
+
+The question this was built to answer — *where is Tippmixpro paying well?* — now has a
+measured answer, and it is close to "nowhere":
+
+- **4 legs out of 75 beat the best book**, by 0.8% to 2.9%. Scattered across markets and
+  odds bands; no pattern to exploit.
+- **Mean price is 94.5% of the best book.** The downside is severe where it is bad:
+  −28.1% (Elche–Real Madrid home at 16.0 → 11.5), −20.2%, −18.4%.
+- **Every one of the six worst legs is above 3.6 odds.** Short legs are priced roughly
+  fairly; long ones are cut hard. Same shape as the fitted curve, and independent
+  justification for the @5.00 ceiling.
+
+Ratio against the *market average* by band (75 pairs): 1.0–1.6 **101.81%**, 1.6–2.2
+100.37%, 2.2–3.2 98.42%, 3.2–5.0 99.01%, 5.0+ **93.64%**.
+
+**So real prices are not an edge-finder; they are a blunder-filter.** Feeding them into
+the slip builder would not surface good prices — there are none — but it would keep a
+−28% leg out of an accumulator, which an estimate with 2.7% error cannot see.
+
+**Not yet done:** nothing is scheduled, no fresh calibration has been fitted, and the slip
+builder still selects on estimated prices.
 
 ### A trap in the day-pool simulations
 

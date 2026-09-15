@@ -22,9 +22,10 @@
 // igy nem fegyelem kerdese, hanem az adatbol kovetkezik.
 //
 // FUTTATAS (a betting-research mappabol):
-//   node tippmix_feed.js                        # mai meccsek arai -> data/tippmix/
+//   node tippmix_feed.js                        # az ot bajnoksag 96 oras ablaka
 //   node tippmix_feed.js --pair <slate.json>    # + parositas egy slate-tel
 //   node tippmix_feed.js --markets              # egy meccs osszes piactipusa
+//   node tippmix_feed.js --highlighted          # a regi mod: fooldali kiemeltek
 //
 // A kimenet a data/tippmix/ mappaba kerul, ugyanoda, ahol a kezi gyujtes van.
 // A --pair kapcsoloval keszult fajl alakja megegyezik a
@@ -53,6 +54,25 @@ const MARKETS = {
 // vonalat tartja meg, tehat a jelenlegi kalibraciohoz ez eleg - DE a README
 // "O/U 3.6 felett nincs adatpont" nyitott kerdeset NEM zarja le. Ahhoz meg
 // kell talalni azt a temat, ami a nem-fovonalas piacokat is kiszolgalja.
+
+// A slate ot bajnoksaga a feed sajat azonositoival. A `tournament-aggregator`
+// tema a bajnoksag OSSZES kiirt meccset adja, nem csak a kovetkezo ket napot -
+// ez fedi le a slate 96 oras elorelatasat.
+//
+// Honnan: a bongeszo a bajnoksag-oldalon (pl.
+// /hu/fogadas/i/bajnoksag-lokacio/labdarugas/1/spanyolorszag/65/...) ezt hivja.
+// A `tournament-odds` NEM ez - az a bajnoksag gyoztese piac.
+//
+// Ha egy szezonvaltasnal elavul egy id: a `/sports/2901/hu/tournaments/1/<kat>`
+// tema listazza egy orszag bajnoksagait. Kategoriak: Anglia 77, Spanyolorszag
+// 65, Nemetorszag 54, Olaszorszag 111, Franciaorszag 73.
+const LEAGUES = {
+  'Premier League': '304261874774142976',   // "Premier Liga 2026/2027"
+  'La Liga':        '304261428958425088',   // "Spanyol bajnoksag 2026/2027"
+  'Bundesliga':     '305538299534733312',   // "Bundesliga 1. 2026/2027"
+  'Serie A':        '304262837539926016',   // "Olasz A 2026/2027"
+  'Ligue 1':        '304906786944282624',   // "Francia bajnoksag 2026/2027"
+};
 
 // ---------------------------------------------------------------- WAMP kliens
 // A protokoll uzenetkodjai (WAMP v2): 1=HELLO 2=WELCOME 8=ERROR 48=CALL 50=RESULT
@@ -191,12 +211,44 @@ function toSelection(o, homeName, awayName) {
 }
 
 // -------------------------------------------------------------------- gyujtes
-async function collect(feed, limit) {
-  // A kiemelt meccsek temaja. A `1380` a foci csoportazonositoja, az
-  // `or1.0-100.0` az odds-tartomany szuro.
-  const topic = `/sports/${OPERATOR}/${LANG}/highlighted-popular-matches-aggregator-groups-overview/1/${limit}/1380/default-event-info/or1.0-100.0`;
-  const records = await feed.dump(topic);
-  const matches = records.filter(r => r._type === 'MATCH');
+// A meccslista ket forrasbol johet:
+//   liga-modban (alapertelmezett) az ot bajnoksag OSSZES kiirt meccse - ez fedi
+//     a slate 96 oras ablakat;
+//   kiemelt modban (--highlighted) a fooldal listaja, ami csak ~2 napot ad.
+// A kiemelt mod azert marad meg, mert nem fugg a bajnoksag-azonositoktol,
+// tehat mukodik akkor is, ha egy szezonvaltas elavulttá teszi oket.
+async function listMatches(feed, limit, useHighlighted) {
+  if (useHighlighted) {
+    const topic = `/sports/${OPERATOR}/${LANG}/highlighted-popular-matches-aggregator-groups-overview/1/${limit}/1380/default-event-info/or1.0-100.0`;
+    const records = await feed.dump(topic);
+    return records.filter(r => r._type === 'MATCH');
+  }
+  const seen = new Map();
+  for (const [name, tid] of Object.entries(LEAGUES)) {
+    let recs;
+    try {
+      recs = await feed.dump(`/sports/${OPERATOR}/${LANG}/tournament-aggregator-groups-overview/${tid}/default-event-info/BOTH/1380`);
+    } catch (err) {
+      // Egy elavult bajnoksag-id nem allithatja meg a tobbit, de LATSZIK.
+      console.log(`  ! ${name}: ${err.message} - elavult a bajnoksag-id? (lasd a fejlecet)`);
+      continue;
+    }
+    const ms = recs.filter(r => r._type === 'MATCH');
+    const now = Date.now();
+    // Csak a slate ablakaba eso meccsek kellenek; a bajnoksag a teljes
+    // szezont kiirja, es minden meccs kulon lekerest jelentene.
+    const inWindow = ms.filter(m => {
+      const h = (Number(m.startTime) - now) / 3600000;
+      return h >= -3 && h <= 96;
+    });
+    for (const m of inWindow) if (!seen.has(m.id)) seen.set(m.id, m);
+    console.log(`  ${name.padEnd(16)} ${String(ms.length).padStart(3)} kiirt meccs, ${String(inWindow.length).padStart(2)} a 96 oras ablakban`);
+  }
+  return [...seen.values()];
+}
+
+async function collect(feed, limit, useHighlighted) {
+  const matches = await listMatches(feed, limit, useHighlighted);
   console.log(`Meccsek a feedben: ${matches.length}`);
   if (!matches.length) throw new Error('a feed nem adott meccset - valtozhatott a temaformatum (lasd a fejlec felderitesi reszet)');
 
@@ -279,6 +331,7 @@ function matchSlateToFeed(slate, feedRows) {
   const pairIdx = args.indexOf('--pair');
   const slatePath = pairIdx >= 0 ? args[pairIdx + 1] : null;
   const showMarkets = args.includes('--markets');
+  const useHighlighted = args.includes('--highlighted');
   const limit = Number((args.find(a => a.startsWith('--limit=')) || '').split('=')[1]) || 20;
 
   if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -305,7 +358,7 @@ function matchSlateToFeed(slate, feedRows) {
       feed.close(); return;
     }
 
-    const rows = await collect(feed, limit);
+    const rows = await collect(feed, limit, useHighlighted);
     const stamp = startedAt.toISOString().replace(/:/g, '-').slice(0, 16) + 'Z';
     const rawFile = path.join(OUT_DIR, `feed_${stamp}.json`);
     fs.writeFileSync(rawFile, JSON.stringify({ collected_at: startedAt.toISOString(), source: WS_URL, matches: rows }, null, 1));
