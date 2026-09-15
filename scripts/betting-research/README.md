@@ -245,6 +245,7 @@ the model is measured against it, not the other way round.
 | `scorer_ab.js` | The whole `buildSlip` logic on real day pools, `model_prob` scorer vs market-probability scorer, leg-level realized ROI. |
 | `scorer_switch_test.js` | 66 checks on the **deployed** `Build Response` node code after the switch to market probability. Run it from this directory. |
 | `tippmix_direct.js` | **The one that fits the shipped curve.** Pairs the live slate run's own `market_avg_odds` with real Tippmixpro prices — no reference correction, no estimate. Extend this one with new prices. |
+| `tippmix_feed.js` | **Collects those prices automatically**, from Tippmixpro's own odds feed. No browser, no dependencies, no login. `--pair <slate.json>` writes a `slate_pairs_*.json` in the shape `tippmix_direct.js` reads. See "Collecting prices from the feed" below. |
 | `timing.js` | Does betting earlier pay? Opening vs closing price on the legs the builder actually picks, per market and odds band, with a paired significance test. Run from `data/`. |
 | `tippmix_calib.js` | The withdrawn first attempt: matches prices against `fixtures.csv` averages. Kept because its overround and book-set findings stand. Run from `data/`. |
 | `tippmix_calib_check.js` | The three things ruled out before believing that calibration: opening-vs-closing timing, book-set differences, sample representativeness. Run from `data/`. |
@@ -392,11 +393,53 @@ captured at the same moment** — which is why `tippmix_direct.js` reads one spe
 execution's output rather than whatever the slate holds now.
 
 **What is still unmeasured:** O/U has 18 direct pairs and none above 3.6; `btts` entirely
-(the API does not serve it; unknown markets fall back to the 1X2 curve); and whether the
-ratio drifts over time. The 1X2 fit is the solid one at t=−9.23. Two long under-2.5 legs
-priced 22% above the market (RB Leipzig–Hamburg, Elversberg–Bayern) were hand-verified as
-genuine against `fixtures.csv`, which suggests long `under` legs are where Tippmixpro is
-most generous — worth more points if revisited.
+(unknown markets fall back to the 1X2 curve); and whether the ratio drifts over time. The
+1X2 fit is the solid one at t=−9.23. Two long under-2.5 legs priced 22% above the market
+(RB Leipzig–Hamburg, Elversberg–Bayern) were hand-verified as genuine against
+`fixtures.csv`, which suggests long `under` legs are where Tippmixpro is most generous —
+worth more points if revisited. **`tippmix_feed.js` (2026-09-15) makes two of these three
+collectable**: `btts` is served after all, and repeated runs give the drift series. The
+O/U-above-3.6 gap stands — see the main-line limit below.
+
+### Collecting prices from the feed (2026-09-15)
+
+`tippmix_feed.js` replaces hand-copying prices off the site. It took 140 prices in about
+four seconds — as many usable points as the entire manual collection — and it is the
+first source that includes `btts`.
+
+**No browser and no dependencies.** tippmixpro.hu runs on EveryMatrix, and its odds arrive
+over a WAMP WebSocket at `wss://sportsapi.tippmixpro.hu/v2` as structured JSON. Node's
+built-in `WebSocket` connects to it directly: the server answers `HELLO` with `WELCOME`
+and never issues the `wampcra` challenge, so no login, no Puppeteer, no Chromium. Prices
+come from `/sports#initialDump` RPC calls against two topic shapes — a match list, and
+`/<eventId>/match-odds/<codes>` for one match.
+
+- **Market codes are `<bettingTypeId>-<eventPartId>`**, `-3` being full time. The three
+  that matter: **`69-3` 1X2, `47-3` Gólszám (O/U), `76-3` Mindkét csapat szerez gólt**.
+  A match carries 23 market types; `node tippmix_feed.js --markets` lists them.
+- **An odds is three records joined**: `MARKET` (what) + `OUTCOME` (which side) +
+  `BETTING_OFFER` (the price), linked by `MARKET_OUTCOME_RELATION`. Only
+  `isAvailable !== false` offers on non-closed markets are kept — a price nobody could
+  have taken is not a price.
+- **Every price carries `lastChangedTime`.** This is the point. The "only compare prices
+  captured at the same moment" rule above stops being discipline and becomes data: the
+  script prints how old the slate is and **refuses to present pairs as calibration-grade
+  when the gap exceeds two hours**. Run against the 2026-09-13 slate it reported 54.2
+  hours and said so — the ratios then ranged 0.79–1.28, which measures two days of market
+  movement, not Tippmixpro's margin.
+- **The main-line limit.** `47-3` returns only the market with `mainLine: true`, which is
+  effectively always the 2.5 line. Other lines (1.5, 3.5) exist as separate `MARKET`
+  records that this topic shape does not serve. The slate only uses 2.5, so calibration is
+  unaffected — but this is why "O/U above 3.6" stays open.
+- **Name matching is the part that rots quietly**, as `Espanyol`/`Espanol` taught. The
+  script reuses `norm()` from `teams.js` and matches both directions plus substring at ≥4
+  characters, and **prints every unpaired leg with a reason** rather than dropping it.
+  Verified on real data: `Elche CF` → `Elche`, `Alavés` → `Alavés`, home/draw/away landing
+  on the right sides (Elche 8.97 → 11.5 as the home outsider, Real Madrid 1.30 → 1.24).
+
+**Not yet done:** nothing is scheduled, and no fresh calibration has been fitted from feed
+data. The next real measurement is a run immediately after an 08:00 slate, which is the
+only way to get same-moment pairs.
 
 ### A trap in the day-pool simulations
 
