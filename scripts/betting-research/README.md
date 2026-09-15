@@ -291,6 +291,70 @@ EL: 306343242866847744
 KL: 306340432262688768
 ```
 
+## Oddspiramis — megmérve, nem éri meg (2026-09-16)
+
+`pyramid_check.js` — a kérdés: a Tippmixpro **Oddspiramis** akciója a sok lábat
+jutalmazza (min. 4 láb, mind @1,30+, a végén a teljes szorzót emeli +5%-tól +60%-ig),
+a szelvényépítő viszont a **legkevesebb** lábat választja, mert a margó lábanként
+szorzódik. Melyik győz?
+
+A számítás: `nettó megtartás = (1 + bónusz_n) / (1 + margó)^n`. Ezt kell a 2 lábas
+szelvény `1/(1+margó)²` értékéhez mérni. A margót **mérjük**, nem becsüljük — 25 meccs
+valós árai a feedből.
+
+### A mért margók
+
+| piac | median margó | @1,30+ láb |
+|---|---|---|
+| **1X2** | **6,15%** | 71 |
+| Ázsiai hendikep | 6,46% | 46 |
+| Gólszám (O/U) | 6,76% | 48 |
+| Mindkét csapat szerez gólt | 7,50% | 50 |
+| Szögletszám | 8,61% | 46 |
+| Hendikep | 9,46% | 73 |
+| *1X2 – Szuper odds (kizárva)* | *2,22%* | *12* |
+
+**Nincs olcsó piac a piramisban.** A remény az volt, hogy a szöglet vagy az ázsiai
+hendikep olcsóbb — nem az. A legjobb a sima 1X2.
+
+### Az eredmény
+
+A legolcsóbb minősülő piacon (1X2, 6,15% margó):
+
+| láb | piramis nélkül | piramissal |
+|---|---|---|
+| **2** | **88,8%** | **88,8%** |
+| 4 | 78,8% | 82,7% |
+| 8 | 62,0% | 77,6% |
+| 14 | 43,4% | 69,4% |
+
+A piramis sokat javít a sok lábas szelvényen (14 lábnál 43,4% → 69,4%), **de sehol nem
+éri utol a 2 lábas 88,8%-ot.** Mekkora bónusz kellene? 4 lábnál 12,7% van 5% helyett,
+8 lábnál 43,1% van 25% helyett, 14 lábnál 104,7% van 60% helyett. A bónusz **lineárisan**
+nő, a margó **exponenciálisan** — a rés minden lábbal tágul.
+
+- **Kontroll a bizonytalan adatra:** az egyik forrás 50%-ot ír 13 lábnál, a másik 60%-ot.
+  A nagyvonalúbb feltevéssel is a 2 láb győz.
+- **A fordulópont 4% margó alatt van.** 3,5%-nál már a 14 láb nyerne (98,8%), 4,0%-nál
+  már a 2 láb (92,5%). A mért legolcsóbb piac 6,15% — kb. 2 százalékponttal a küszöbtől.
+- **A Szuper odds 2,22%-a bőven a küszöb alatt van**, és kombinálva 14 lábnál 121%-ot
+  adna — pozitív várható értéket. Épp ezért **a „1X2 – Szuper odds" kifejezetten ki van
+  zárva az Oddspiramisból.** Ez a kiskapu be van zárva, nem véletlenül.
+
+### Amit ez nem jelent
+
+Ha valaki **úgyis** sok lábat játszik (nagy szorzóért, szórakozásból), a piramis
+**jelentősen csökkenti a veszteséget** — 8 lábnál 62% → 77,6%. Nem teszi nyerővé, de
+sokkal kevésbé rosszá. Ilyenkor érdemes minősülő piacot választani és minimum 4 lábat.
+
+### Mérési csapda, amit a script kezel
+
+A **kétesély** (`9-3`) piac 117%-os „margót" mutatott. A `sum(1/odds) - 1` képlet csak
+**egymást kizáró** kimenetelekre érvényes; a kétesély három kimenetele (1X, 12, X2)
+átfedi egymást, minden eredmény kettőben is benne van, ezért az összeg ~2 körül áll.
+A script ezért kihagyja, kiírt indoklással — egy külön képlettel becsült számot
+félrevezető lenne ugyanabba a táblába tenni.
+
 ## Profitability review (2026-09-12)
 
 Six scripts, one question each, asked after the settlement workflow made the win rate
