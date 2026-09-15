@@ -246,6 +246,7 @@ the model is measured against it, not the other way round.
 | `scorer_switch_test.js` | 66 checks on the **deployed** `Build Response` node code after the switch to market probability. Run it from this directory. |
 | `tippmix_direct.js` | **The one that fits the shipped curve.** Pairs the live slate run's own `market_avg_odds` with real Tippmixpro prices — no reference correction, no estimate. Extend this one with new prices. |
 | `tippmix_feed.js` | **Collects those prices automatically**, from Tippmixpro's own odds feed. No browser, no dependencies, no login. `--pair <slate.json>` writes a `slate_pairs_*.json` in the shape `tippmix_direct.js` reads. See "Collecting prices from the feed" below. |
+| `collect.js` | **The one to actually run.** Reads the fresh slate out of n8n, calls `tippmix_feed.js`, and scores the shipped curve against the real prices — one command, so the two halves cannot drift apart in time. |
 | `timing.js` | Does betting earlier pay? Opening vs closing price on the legs the builder actually picks, per market and odds band, with a paired significance test. Run from `data/`. |
 | `tippmix_calib.js` | The withdrawn first attempt: matches prices against `fixtures.csv` averages. Kept because its overround and book-set findings stand. Run from `data/`. |
 | `tippmix_calib_check.js` | The three things ruled out before believing that calibration: opening-vs-closing timing, book-set differences, sample representativeness. Run from `data/`. |
@@ -437,9 +438,59 @@ come from `/sports#initialDump` RPC calls against two topic shapes — a match l
   Verified on real data: `Elche CF` → `Elche`, `Alavés` → `Alavés`, home/draw/away landing
   on the right sides (Elche 8.97 → 11.5 as the home outsider, Real Madrid 1.30 → 1.24).
 
-**Not yet done:** nothing is scheduled, and no fresh calibration has been fitted from feed
-data. The next real measurement is a run immediately after an 08:00 slate, which is the
-only way to get same-moment pairs.
+### How to actually use it: `node collect.js`
+
+One command, run from `scripts/betting-research/` after the 08:00 slate. It reads the
+fresh slate out of n8n, collects real prices, pairs them, and scores the shipped curve:
+
+```bash
+node collect.js
+```
+
+Splitting this into two steps is what makes the measurement invalid — the market moves in
+between — so the slate read and the price collection live in one run. It prints the
+slate's age and warns past two hours. Needs `N8N_API_KEY`.
+
+Two things it encodes that cost time to discover:
+
+- **The n8n data-table endpoint returns an empty list if `skip` or `offset` is present.**
+  Only `cursor` paginates. Measured 2026-09-15.
+- **`N8N_API_URL` is the host root**, without `/api/v1`. The script appends it.
+
+### First same-moment measurement (2026-09-15)
+
+Slate builder ran manually at 14:20:32; collection at 14:22. **0.0 hours apart** — the
+first time the slate price and the real price come from the same moment. Every earlier
+calibration fought either an estimate or a time gap.
+
+Scoring the **shipped** curve against those 15 real prices:
+
+| market | mean absolute error | n |
+|---|---|---|
+| O/U | **1.53%** | 6 |
+| 1X2 | 3.85% | 9 |
+| all | 2.92% | 15 |
+
+- **The flat O/U curve holds up.** 1.53% error, raw ratio 100.08% — effectively unbiased.
+  Independent support for not fitting a slope to two weak contradictory signals.
+- **The 1X2 error concentrates in extrapolation.** Elche–Real Madrid's home leg
+  (13.15 → 11.5) is **−8.59%**, and the draw at 7.43 is −5.96%. The fit's measured range
+  tops out near 5.5; above it the curve is guessing, exactly as the node's comment says.
+  On short legs (1.2–3.5) the error runs 0.07–4.4%.
+- **15 pairs is not a calibration.** This validates the *method*, not a new curve. The
+  existing 45-pair fit stands until several days of pairs accumulate.
+
+**The 96-hour limit, which is why only 15 pairs.** The slate looks up to 96 hours ahead
+(it had 18–19 September fixtures); the feed's `highlighted-popular-matches` topic serves
+only the next ~2 days, capped at 200 matches. So only that day's fixtures pair. Raising
+`--limit` does not help — the window, not the count, is the constraint. Collecting daily
+still accumulates 15–20 pairs a day without solving this.
+
+**A lead if it becomes worth chasing:** the `/sports#search` RPC exists but rejects the
+`apiVersion` sent here. Finding the right one means recording browser traffic again, the
+same way the topic shapes were found.
+
+**Not yet done:** nothing is scheduled, and no fresh calibration has been fitted.
 
 ### A trap in the day-pool simulations
 
