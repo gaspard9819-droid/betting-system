@@ -41,11 +41,36 @@ function buildSlip(pool, opts) {
   const tol = opts.tolerance || 0.12;      // +-12% a cel korul
   const POOL_CAP = opts.poolCap || 40;
 
+  // A HASZNALT ar. Ahol van boostolt ("Szuper odds") ar, azt vesszuk - az
+  // ugyanarra az esemenyre nagyobb odds, tehat minden szempontbol jobb:
+  //
+  //   1. kevesebb margo. Meres 2026-09-16 (4 meccs, 12 kimenet): a boostolt
+  //      piacon az overround ~2.0-2.4%, a rendesen 4.3-6.5%. Ket labon ez ~7
+  //      szazalekpont megtartott ertek - nagyobb hatas, mint a line shopping
+  //      (+3.79pp), ami eddig a legnagyobb mert pozitivum volt.
+  //   2. VALODI ar, nem becsles. A tippmix_odds a Generate Legs
+  //      `tippmixRatio()` becslese (2.31% atlagos hiba); a boost_odds a feedbol
+  //      jon, ugy ahogy a Tippmixpro kiirja.
+  //   3. konnyebb cel-illesztes. Nagyobb labodds mellett ugyanaz a celszorzo
+  //      kevesebb labbal is kijon - pont az a szuk keresztmetszet enyhul, ami
+  //      a 2.2x-es celnal 0 lehetseges part adott.
+  //
+  // A boost CSAK 1X2 piacon letezik (merve); az O/U es BTTS labak rendes aron
+  // maradnak. Ez rendben van: egy meccsbol ugyis csak egy lab mehet.
+  const priceOf = l => (Number.isFinite(l.boost_odds) && l.boost_odds > 1)
+    ? l.boost_odds
+    : l.tippmix_odds;
+
   // A dontesi valoszinuseg. A market_prob a de-viggelt piaci valoszinuseg;
   // ha hianyzik (regi slate-sor, vagy egy piac, ahol nem jott ossze a de-vig),
   // 1/odds a visszaeses. Az NEM ugyanaz - benne van a margo -, de egy sav
   // fix margojaval monoton ugyanaz a rangsor, es ez csak rangsorra kell.
   // Sosem esunk vissza a model_prob-ra: az a mereseink szerint FORDITOTT.
+  //
+  // FONTOS: a visszaeses a RENDES arbol szamol, nem a boostoltbol. A boost a
+  // kifizetest emeli, nem az esemeny valoszinuseget - 1/boost_odds alabecsulne
+  // az eselyt, es a boostolt labak indokolatlanul rosszabb helyre kerulnenek
+  // a rangsorban.
   const pOf = l => (Number.isFinite(l.market_prob) && l.market_prob > 0)
     ? l.market_prob
     : (l.tippmix_odds > 1 ? 1 / l.tippmix_odds : 0);
@@ -54,7 +79,7 @@ function buildSlip(pool, opts) {
   let cand = pool.filter(l =>
     l.news_flag !== 'veto' &&
     l.confidence !== 'ALACSONY' &&
-    l.tippmix_odds >= minLegOdds &&
+    priceOf(l) >= minLegOdds &&
     pOf(l) > 0
   );
   if (!cand.length) return { ok: false, reason: 'no_candidates' };
@@ -75,7 +100,7 @@ function buildSlip(pool, opts) {
   const perBand = Math.max(4, Math.ceil(POOL_CAP / BANDS.length));
   const picked = [];
   for (const [blo, bhi] of BANDS) {
-    picked.push(...cand.filter(l => l.tippmix_odds >= blo && l.tippmix_odds < bhi).slice(0, perBand));
+    picked.push(...cand.filter(l => priceOf(l) >= blo && priceOf(l) < bhi).slice(0, perBand));
   }
   cand = picked.sort((a, b) => b._q - a._q);
 
@@ -84,12 +109,12 @@ function buildSlip(pool, opts) {
   // Egy kereso-menet adott odds-plafonnal. Azert kulon fuggveny, hogy
   // ketszer futtathassuk: eloszor a plafonnal, aztan nelkule.
   const search = (cap) => {
-    const pool2 = cand.filter(l => l.tippmix_odds <= cap);
+    const pool2 = cand.filter(l => priceOf(l) <= cap);
     if (!pool2.length) return null;
 
     // A maxOdds a SZUKITETT listan szamolodik: kevesebb a felso hatar,
     // tehat tobb lab kell ugyanahhoz a celhoz. Pont ez a kivant hatas.
-    const maxOdds = Math.max(...pool2.map(l => l.tippmix_odds));
+    const maxOdds = Math.max(...pool2.map(l => priceOf(l)));
     // Minimum 2 lab: aki szelvenyt ker, tobb labra gondol - egy lab sima
     // fogadas. Ha 2 labbal nem jon ki a cel, a lenti fallback ad 1 labasat.
     const nMin = Math.max(minLegs, Math.ceil(Math.log(T) / Math.log(maxOdds)));
@@ -111,7 +136,7 @@ function buildSlip(pool, opts) {
           if (pool2.length - i < remaining) break;        // nem jon ki a letszam
           const l = pool2[i];
           if (usedMatches.has(l.event_id)) continue;      // egy meccs = egy lab
-          const p = prod * l.tippmix_odds;
+          const p = prod * priceOf(l);
           // metszes: ha a maradek labakkal a maximum sem eri el a also hatart -> dobjuk
           if (p * Math.pow(maxOdds, remaining - 1) < lo) continue;
           // metszes: ha mar most tullotte a felso hatart -> dobjuk (odds >= 1)
@@ -133,8 +158,14 @@ function buildSlip(pool, opts) {
           const drift = Math.abs(f.prod - T) / T;
           f.score = jointP * (1 - drift);
           f.jointP = jointP;
+          f.boosted = f.legs.filter(l => Number.isFinite(l.boost_odds) && l.boost_odds > 1).length;
         }
-        found.sort((a, b) => b.score - a.score);
+        // Elsodleges rendezes a pontszam; a boost csak DONTETLENT bont.
+        // Szandekosan nem szorzo a score-ban: a boost mar benne van az
+        // arban (priceOf), tehat a cel-illesztesen keresztul ugyis hat.
+        // Egy kulon bonusz megsem-jobb kombinaciot hozna fel csak azert,
+        // mert boostolt - itt viszont csak azonos ertek eseten dont.
+        found.sort((a, b) => (b.score - a.score) || (b.boosted - a.boosted));
         const winner = found[0];
         winner.n = n;
         return winner;                                    // NEM megyunk feljebb
@@ -167,17 +198,17 @@ function buildSlip(pool, opts) {
     // Nincs megoldas minLegs+ labbal - probaljuk egyetlen labbal, mielott
     // a kozelito agra mennenk. Alacsony celnal (pl. 3x) ez a helyes valasz.
     if (minLegs > 1) {
-      const single = cand.filter(l => l.tippmix_odds >= lo && l.tippmix_odds <= hi);
+      const single = cand.filter(l => priceOf(l) >= lo && priceOf(l) <= hi);
       if (single.length) {
         single.sort((a, b) => pOf(b) - pOf(a));
         return { ok: true, approximate: false, single_leg: true, n: 1,
-          legs: [single[0]], prod: single[0].tippmix_odds,
+          legs: [single[0]], prod: priceOf(single[0]),
           jointP: pOf(single[0]) };
       }
     }
     // nincs pontos talalat — adjuk a legkozelebbit barmely n-en.
     // Ez a teljes jelolt-listan dolgozik (plafon nelkul): vegso mentsvar.
-    const allMaxOdds = Math.max(...cand.map(l => l.tippmix_odds));
+    const allMaxOdds = Math.max(...cand.map(l => priceOf(l)));
     const nMinAll = Math.max(1, Math.ceil(Math.log(T) / Math.log(allMaxOdds)));
     let closest = null;
     for (let n = nMinAll; n <= maxLegs; n++) {
@@ -187,8 +218,8 @@ function buildSlip(pool, opts) {
       for (const l of cand) {
         if (greedy.length >= n) break;
         if (used.has(l.event_id)) continue;
-        if (prod * l.tippmix_odds > hi && greedy.length) continue;
-        greedy.push(l); used.add(l.event_id); prod *= l.tippmix_odds;
+        if (prod * priceOf(l) > hi && greedy.length) continue;
+        greedy.push(l); used.add(l.event_id); prod *= priceOf(l);
       }
       if (greedy.length === n) {
         const d = Math.abs(prod - T);

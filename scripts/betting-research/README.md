@@ -227,6 +227,70 @@ node settle_test.js
   **Rule: for any node reading an HTTP response, take the mock's shape from a real
   execution's output, not from what the field ought to be called.**
 
+## Boostolt oddsok — Tippmixpro "Szuper odds" (2026-09-16)
+
+| file | what it does |
+|---|---|
+| `boost_fetch.js` | Lekéri a boostolt árakat a Tippmixpro feedből, párosítja a slate lábaihoz, és beírja a `bet_slate.boost_odds` mezőbe. |
+| `tippmix_discover.js` | Bajnokság-azonosítók felderítése a feedben. Ezzel kerültek elő a nemzetközi kupák. |
+| `boost_slip_test.js` | 21 eset a lokális `slip.js` boost-viselkedésére. |
+| `boost_wf_test.js` | 17 eset a **deployolt** `Build Response` node kódja ellen, a workflow JSON-ból olvasva. |
+
+**Indítás:** a `boost-frissites.cmd` az Asztalon (dupla kattintás), vagy innen:
+
+```bash
+node boost_fetch.js            # száraz futás, nem ír
+node boost_fetch.js --write    # beírja a slate-be
+node boost_fetch.js --min 3    # csak a 3%-nál nagyobb emeléseket
+```
+
+Futtasd a Discord `/szelveny` előtt — utána a szelvényépítő már a boostolt árakkal dolgozik.
+
+### Amit ez megállapított
+
+- **A boostolt piac margója ~2%, a rendesé 4,3–6,5%** (4 meccs, 12 kimenet, 2026-09-16).
+  A ~2% Pinnacle-szintű árazás: a Tippmixpro a Szuper odds piacon lényegesen élesebben
+  áraz, mint máshol. Két lábon ez ~7 százalékpont megtartott érték — nagyobb hatás, mint
+  a line shopping (+3,79pp), ami eddig a legnagyobb mért pozitívum volt.
+- **De 2% még mindig margó.** A boost eltünteti a hátrány nagy részét, nem fordítja
+  előnnyé. Ahhoz lay-oldal kellene, ami magyar lakcímmel nem elérhető — az exchange-út
+  (matched betting, arbitrázs) le van zárva, lásd a memóriát.
+- **A boost csak 1X2 piacon van**, `bettingTypeId` 693, témaforma `match-odds/693-3`.
+  Az O/U és BTTS lábak rendes áron maradnak. Ez rendben van: egy meccsből úgyis csak
+  egy láb mehet, tehát a vegyes szelvény (boostolt 1X2 + rendes O/U) változatlanul megy.
+- **A boostolt ár VALÓDI, nem becslés.** A `tippmix_odds` a `tippmixRatio()` becslése
+  (2,31% átlagos hiba); a `boost_odds` a feedből jön. A 2026-09-16-i futás ezt ki is
+  mutatta: az Atlético hazai lábánál a becslés @1,45 volt, a valós ár @1,44 — a becslés
+  **felül**becsült. A boost tehát nem csak jobb árat hoz, hanem pontosabbat is.
+
+### Két korlát, ami a munka során derült ki
+
+**1. Az n8n Code node nem tud WebSocketet nyitni.** Mérve 2026-09-15 egy eldobható
+szonda-workflow-val: `hasWebSocketGlobal: false`. A Code node külön task-runner
+konténerben fut (ugyanaz, ami a `process.env`-et is elzárja). A feednek nincs
+REST-alternatívája sem — minden HTTP-út 404/502. Ezért kell külső script, és ezért
+nem építhető meg a `/boost` Discord-parancs az n8n-ben.
+
+**2. A feed rövidíti a csapatneveket, a slate nem.** `Atl. Madrid` vs
+`Atlético Madrid` — a puszta részstring-vizsgálat erre elbukik (`atl madrid` nincs
+benne az `atletico madrid`-ban), és az első futás mind a 12 boostot eldobta. A
+`teamsMatch()` negyedik lépcsője ezért szavanként hasonlít, előtag-egyezéssel,
+minimum 3 karakteres szavakra. Ugyanaz a csendes törés, amit az Espanyol/Espanol
+eset már megtanított: **a párosítatlan sorokat ki kell írni, nem lenyelni.**
+
+### A valódi szűk keresztmetszet
+
+Nem a boost, hanem a **kevés meccs**. 2026-09-16-án 18 EL-meccs volt, amiből egy sem
+került a slate-re, mert a Slate Builder csak 5 hazai bajnokságot ismer — így a boostolt
+MU–Brighton (+9,59%) és Milan–Benfica (+7,81%) is kimaradt. A nemzetközi kupák
+azonosítói megvannak (67-es kategória, `tippmix_discover.js`):
+
+```
+BL: 305538761002545152
+EL: 306343242866847744
+KL: 306340432262688768
+```
+
 ## Profitability review (2026-09-12)
 
 Six scripts, one question each, asked after the settlement workflow made the win rate
