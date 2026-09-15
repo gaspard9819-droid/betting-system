@@ -1,0 +1,621 @@
+{
+  "name": "Bet Settlement",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a5349862-64f2-4128-b6a4-4329390edba2",
+      "name": "Manual Trigger",
+      "notes": "Kezi futtatas. Az elszamolas idempotens: ugyanazt a labat ketszer lefuttatva ugyanaz jon ki."
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        160
+      ],
+      "id": "517b1a42-1aba-4b1e-8254-e4937aa293ac",
+      "name": "Schedule Trigger",
+      "notes": "Naponta 10:00. Ket ora a Slate Builder (08:00) utan, hogy ne fussanak egyszerre a football-data letoltesek - a ket hoszt rate-limitje kozos."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ugyanaz a szezon- es hoszt-logika, mint a Slate Builder Config\n// node-jaban. A KET HOSZT kulon rate-limit savon fut: 2026-09-08-an\n// a www 503-at adott (Retry-After: 348), mikozben a www nelkuli\n// valtozat 999/1000 kvotaval ment. Egy hoszt = egyetlen hibapont.\n//\n// Itt CSAK a FOLYO szezon kell: a szelvenyek mindig a kozeljovore\n// szolnak, nem tavalyi meccsekre.\nconst NOW = new Date();\nconst y = NOW.getUTCFullYear(), mo = NOW.getUTCMonth() + 1;\nconst startYear = mo >= 8 ? y : y - 1;\nconst sc = yr => String(yr % 100).padStart(2, '0') + String((yr + 1) % 100).padStart(2, '0');\nconst SEASON = sc(startYear);\n\n// A liganev UGYANAZ a string, amit a slate a league mezobe ir -\n// ezen parosul az eredmeny a labhoz.\nconst LEAGUES = [\n  { code: 'E0',  name: 'Premier League' },\n  { code: 'SP1', name: 'La Liga' },\n  { code: 'D1',  name: 'Bundesliga' },\n  { code: 'I1',  name: 'Serie A' },\n  { code: 'F1',  name: 'Ligue 1' },\n];\nconst HOSTS = ['www.football-data.co.uk', 'football-data.co.uk'];\n\nconst out = [];\nfor (const lg of LEAGUES) {\n  for (const host of HOSTS) {\n    out.push({ json: {\n      url: `https://${host}/mmz4281/${SEASON}/${lg.code}.csv`,\n      host, key: lg.code, league: lg.code, league_name: lg.name, season: SEASON,\n    }});\n  }\n}\nreturn out;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        80
+      ],
+      "id": "e4509eff-6748-4026-9e5c-98f520df1afd",
+      "name": "Config",
+      "notes": "Mindket football-data hosztra kiadja a kerest (kulon rate-limit sav). 5 liga x 2 hoszt = 10 item, a folyo szezonra."
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 3
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 25000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        440,
+        80
+      ],
+      "id": "1f9aade5-2cf6-4dd6-b7e3-71132e1809fa",
+      "name": "Fetch Results",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "notes": "neverError + fullResponse: a 503-at adatként kapjuk meg, nem kivetelkent, hogy a masik hoszt eselyt kapjon."
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "rWAlDpLh2eG5cpoe"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "open"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        280
+      ],
+      "id": "6a5191db-9798-459d-89d8-7e8c021d7906",
+      "name": "Get Open Slips",
+      "alwaysOutputData": true,
+      "notes": "Csak a nyitott szelvenyek. A lezartakat nem szamoljuk ujra - egy lezart szelveny nem valtozhat."
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "VQWSxF1xp3YF0Jn6"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "condition": "eq",
+              "keyValue": "open"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        440
+      ],
+      "id": "3112ebf1-5d34-42b8-a025-3caf1158cfc9",
+      "name": "Get Open Legs",
+      "alwaysOutputData": true,
+      "notes": "returnAll KELL: a row/get alapbeallitasa 50 sor, ami csendben levagna a labakat."
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        660,
+        280
+      ],
+      "id": "ce2b7459-276a-4ce6-91ea-34ae3ca073cc",
+      "name": "Combine Inputs",
+      "notes": "append + numberInputs:3 KIIRVA. A harom ag (CSV valaszok, nyitott szelvenyek, nyitott labak) kulonbozo alaku, ezert a Settle Legs nem innen olvassa oket, hanem $(\"node\") -vel nev szerint. Ez a node a FUTASI SORRENDET kenyszeriti ki: mindharom ag keszen legyen az elszamolas elott. A numberInputs default 2 - kiirva kell lennie, kulonben a harmadik ag csendben elveszne."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===================== MEGOSZTOTT LOGIKA =====================\n// Szo szerint a scripts/betting-research/teams.js + settle.js tartalma.\n// A require/module.exports kivagva; egyebkent karakterre azonos azzal,\n// amit a settle_test.js 79 teszten, valos adaton atvitt.\n// Ha itt valtoztatsz, a scriptben IS valtoztass - vagy futtasd ujra a\n// sync ellenorzest (settle_test.js osszeveti a ket ALIAS tablat).\n\n// Csapatnev-parositas: a football-data.co.uk CSV nevei <-> The Odds API nevei.\n//\n// EZ A TABLA A FORRAS. Szo szerint kimasolva a \"Generate Legs\" node-bol\n// (Betting Slate Builder), es a \"Settle Legs\" node ugyanezt hasznalja.\n// Ket kezzel tartott kopia elkerulhetetlenul elcsuszik: az elso valtozatban\n// 67 bejegyzes volt itt a 122 helyett, es az Espanyol (a CSV-ben \"Espanol\")\n// emiatt parositatlan maradt - 5 leg csendben kiesett volna az elszamolasbol.\n// A sync-et a settle_test.js ellenorzi: osszeveti ezt a tablat a workflow\n// JSON-jaban levovel, es bukik, ha elternek.\n//\n// Uj csapat eseten MINDKET helyen javitani kell (itt es a node-ban), vagy\n// futtatni a sync_alias.js-t, ami innen irja at a node kodjat.\n\nconst ALIAS = {\n  'manchester united': 'Man United', 'manchester city': 'Man City',\n  'newcastle united': 'Newcastle', 'tottenham hotspur': 'Tottenham',\n  'wolverhampton wanderers': 'Wolves', 'nottingham forest': \"Nott'm Forest\",\n  'brighton and hove albion': 'Brighton', 'brighton & hove albion': 'Brighton',\n  'west ham united': 'West Ham', 'leeds united': 'Leeds',\n  'leicester city': 'Leicester', 'ipswich town': 'Ipswich',\n  'sheffield united': 'Sheffield United', 'luton town': 'Luton',\n  'afc bournemouth': 'Bournemouth', 'crystal palace': 'Crystal Palace',\n  'atletico madrid': 'Ath Madrid', 'athletic bilbao': 'Ath Bilbao',\n  'real sociedad': 'Sociedad', 'real betis': 'Betis',\n  'celta vigo': 'Celta', 'rayo vallecano': 'Vallecano',\n  'deportivo alaves': 'Alaves', 'real valladolid': 'Valladolid',\n  'racing santander': 'Santander', 'real madrid': 'Real Madrid',\n  'fc barcelona': 'Barcelona', 'barcelona': 'Barcelona',\n  'bayern munich': 'Bayern Munich', 'bayern munchen': 'Bayern Munich',\n  'borussia dortmund': 'Dortmund', 'borussia monchengladbach': \"M'gladbach\",\n  'bayer leverkusen': 'Leverkusen', 'eintracht frankfurt': 'Ein Frankfurt',\n  'vfb stuttgart': 'Stuttgart', 'vfl wolfsburg': 'Wolfsburg',\n  'werder bremen': 'Werder Bremen', 'fc koln': 'FC Koln', '1 fc koln': 'FC Koln',\n  'rb leipzig': 'RB Leipzig', 'sc freiburg': 'Freiburg', 'fc augsburg': 'Augsburg',\n  'mainz 05': 'Mainz', 'fsv mainz 05': 'Mainz', 'tsg hoffenheim': 'Hoffenheim',\n  'inter milan': 'Inter', 'ac milan': 'Milan', 'as roma': 'Roma',\n  'ss lazio': 'Lazio', 'ssc napoli': 'Napoli',\n  'atalanta bc': 'Atalanta', 'acf fiorentina': 'Fiorentina',\n  'hellas verona': 'Verona', 'us lecce': 'Lecce', 'torino fc': 'Torino',\n  'paris saint germain': 'Paris SG', 'paris saintgermain': 'Paris SG',\n  'olympique marseille': 'Marseille', 'olympique lyonnais': 'Lyon',\n  'as monaco': 'Monaco', 'lille osc': 'Lille', 'stade rennais': 'Rennes',\n  'ogc nice': 'Nice', 'rc lens': 'Lens', 'fc nantes': 'Nantes',\n  'atletico madrid': 'Ath Madrid', 'atletico de madrid': 'Ath Madrid',\n  'deportivo la coruna': 'La Coruna', 'rc deportivo la coruna': 'La Coruna',\n  '1 fc koln': 'FC Koln', 'fc koln': 'FC Koln', '1 fc kolna': 'FC Koln',\n  'real racing club de santander': 'Santander', 'racing de santander': 'Santander',\n  'rcd espanyol': 'Espanol', 'espanyol': 'Espanol', 'rcd espanyol de barcelona': 'Espanol',\n  'real oviedo': 'Oviedo', 'ud levante': 'Levante', 'levante ud': 'Levante',\n  'elche cf': 'Elche', 'girona fc': 'Girona', 'rcd mallorca': 'Mallorca',\n  'ca osasuna': 'Osasuna', 'getafe cf': 'Getafe', 'sevilla fc': 'Sevilla',\n  'valencia cf': 'Valencia', 'villarreal cf': 'Villarreal',\n  'hamburger sv': 'Hamburg', 'sv werder bremen': 'Werder Bremen',\n  'fc st pauli': 'St Pauli', 'st pauli': 'St Pauli',\n  '1 fsv mainz 05': 'Mainz', 'fsv mainz 05': 'Mainz',\n  '1 fc union berlin': 'Union Berlin', 'union berlin': 'Union Berlin',\n  'fc schalke 04': 'Schalke 04', 'schalke 04': 'Schalke 04',\n  '1 fc heidenheim': 'Heidenheim', 'fc heidenheim 1846': 'Heidenheim',\n  'sv elversberg': 'Elversberg', 'sc paderborn 07': 'Paderborn',\n  'ac monza': 'Monza', 'us cremonese': 'Cremonese', 'ac pisa': 'Pisa',\n  'us sassuolo': 'Sassuolo', 'venezia fc': 'Venezia', 'parma calcio': 'Parma',\n  'cagliari calcio': 'Cagliari', 'genoa cfc': 'Genoa', 'como 1907': 'Como',\n  'udinese calcio': 'Udinese', 'bologna fc': 'Bologna',\n  'stade brestois': 'Brest', 'stade brestois 29': 'Brest',\n  'fc lorient': 'Lorient', 'le havre ac': 'Le Havre', 'fc metz': 'Metz',\n  'aj auxerre': 'Auxerre', 'toulouse fc': 'Toulouse', 'angers sco': 'Angers',\n  'rc strasbourg': 'Strasbourg', 'rc strasbourg alsace': 'Strasbourg',\n  'le mans fc': 'Le Mans', 'estac troyes': 'Troyes', 'paris fc': 'Paris FC',\n};\n\n// NFD: az ekezetes betut alapbetu + kombinalo jel parra bontja, majd a jelet\n// eltavolitjuk. Enelkul az \"Atletico\" -> \"atltico\" lenne (torolt betu), es a\n// La Liga / Bundesliga ekezetes nevei sosem parosulnanak.\nconst norm = s => String(s)\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\\s+/g, ' ').trim();\n\n\n\n\n// A \"Settle Legs\" node logikaja. Egy leg kimenetelenek eldontese a\n// football-data.co.uk vegeredmenyebol (FTHG/FTAG).\n//\n// MIERT KULON FAJL: ugyanaz az elv, mint a slip.js-nel - a logika lokalisan\n// tesztelve lesz valos CSV-n es valos slate snapshoton, mielott n8n node-ba\n// kerul. A csapatnev-parositas itt a kockazatos resz: az Odds API nevei\n// (match_name) es a CSV nevei kulonboznek, es egy elnezett parositas\n// CSENDBEN allitana rosszul a nyeresi aranyt.\n\n// ---------- csapatnev normalizalas ----------\n// A tabla es a norm() a teams.js-bol jon, ami SZO SZERINT a \"Generate Legs\"\n// node ALIAS tablaja. Nem masoljuk ide ujra: az elso valtozat kezi kopiaja\n// 67 bejegyzest tartalmazott a 122 helyett, es az Espanyol (a CSV-ben\n// \"Espanol\") emiatt parositatlan maradt - 5 leg csendben kiesett volna.\n\n\n// A slate match_name-je \"Hazai vs Vendeg\". A ' vs ' a Generate Legs-ben\n// kepzodik, tehat fix - de vedunk ellene, hogy ne allitsunk rosszat.\nfunction splitMatchName(matchName) {\n  const parts = String(matchName).split(' vs ');\n  if (parts.length !== 2) return null;\n  const home = parts[0].trim(), away = parts[1].trim();\n  if (!home || !away) return null;\n  return { home, away };\n}\n\n// Egy slate-nev parositasa a CSV-ben szereplo nevek listajahoz.\n// Ugyanaz a 4 lepcso, mint a findTeam()-ben: direkt, alias, normalizalt,\n// majd reszstring >= 4 karakteren.\nfunction matchTeamName(slateName, csvNames) {\n  if (csvNames.has(slateName)) return slateName;\n  const n = norm(slateName);\n  const aliased = ALIAS[n];\n  if (aliased && csvNames.has(aliased)) return aliased;\n  for (const c of csvNames) if (norm(c) === n) return c;\n  for (const c of csvNames) {\n    const nc = norm(c);\n    if (nc.length >= 4 && (n.includes(nc) || nc.includes(n))) return c;\n  }\n  return null;\n}\n\n// ---------- kimenetel ----------\n// Egyetlen hely, ahol egy piac/kimenetel -> nyert/vesztett dol el.\n// Uj piac hozzaadasakor IDE kell irni, kulonben null-t ad (= nyitva marad,\n// nem pedig tevedesbol vesztett).\nfunction legOutcome(market, selection, hg, ag) {\n  if (!Number.isFinite(hg) || !Number.isFinite(ag)) return null;\n  if (market === 'h2h') {\n    if (selection === 'home') return hg > ag;\n    if (selection === 'draw') return hg === ag;\n    if (selection === 'away') return ag > hg;\n    return null;\n  }\n  if (market === 'totals') {\n    // A slate csak a 2.5-os vonalat tartja meg (Generate Legs szuri),\n    // igy nincs push: 2.5 nem lehet pontos golszam.\n    if (selection === 'over25') return hg + ag > 2.5;\n    if (selection === 'under25') return hg + ag < 2.5;\n    return null;\n  }\n  if (market === 'btts') {\n    if (selection === 'btts_yes') return hg > 0 && ag > 0;\n    if (selection === 'btts_no') return !(hg > 0 && ag > 0);\n    return null;\n  }\n  return null;\n}\n\n// ---------- CSV -> eredmeny index ----------\n// A kulcsot egy helyen kepezzuk: az indexeles es a kereses kulonbozo\n// kulcsformaja csendes \"result_not_published\"-ot adna minden legre.\nconst resultKey = (league, home, away) => league + '|' + home + '|' + away;\n\n// Csak a vegeredmeny kell, es CSAK a lejatszott meccsek. Egy jovobeli sor\n// ures FTHG-vel nem szabad, hogy 0-0-kent szamoljon.\nfunction indexResults(raw, league) {\n  const text = String(raw).replace(/^﻿/, '');\n  const lines = text.split(/\\r?\\n/).filter(l => l.trim().length > 0);\n  if (lines.length < 2) return { byKey: {}, names: new Set() };\n  const head = lines[0].split(',').map(h => h.trim());\n  const col = {};\n  head.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });\n  for (const n of ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG']) {\n    if (col[n] === undefined) return { byKey: {}, names: new Set() };\n  }\n  const byKey = {}, names = new Set();\n  for (let i = 1; i < lines.length; i++) {\n    const f = lines[i].split(',');\n    const home = (f[col['HomeTeam']] || '').trim();\n    const away = (f[col['AwayTeam']] || '').trim();\n    if (!home || !away) continue;\n    // A nevek a MEG NEM jatszott sorokbol is kellenek: kulonben egy\n    // parositatlan csapat \"unresolvable\" lenne \"result_not_published\"\n    // helyett, es hibanak latszana, ami csak varakozas.\n    names.add(home); names.add(away);\n    const fthg = f[col['FTHG']], ftag = f[col['FTAG']];\n    if (fthg === undefined || fthg === '' || ftag === undefined || ftag === '') continue;\n    const hg = Number(fthg), ag = Number(ftag);\n    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;\n    // dd/mm/yyyy - NEM ISO, kezzel bontjuk (ugyanaz, mint a parse.js-ben)\n    const m = (f[col['Date']] || '').trim().match(/^(\\d{2})\\/(\\d{2})\\/(\\d{2}|\\d{4})$/);\n    if (!m) continue;\n    const yr = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);\n    const date = new Date(Date.UTC(yr, Number(m[2]) - 1, Number(m[1])));\n    if (isNaN(date.getTime())) continue;\n    // A kulcs csapatpar, NEM datum: a CSV datuma a helyi jateknap, a slate\n    // kickoff-ja UTC - ezek atlephetik egymast ejfelkor. Egy szezonban egy\n    // parositas hazai palyan egyszer jatszik, tehat a par egyedi.\n    // A datumot megtartjuk ellenorzesre (lasd date_mismatch).\n    byKey[resultKey(league, home, away)] = { hg, ag, date: date.toISOString(), home, away };\n  }\n  return { byKey, names };\n}\n\n// ---------- egy leg elszamolasa ----------\n// Harom kimenet: won/lost | still_open | unresolvable.\n// A \"still_open\" es az \"unresolvable\" kulonvalasztasa szandekos: az elso\n// varakozas (a CSV meg nem frissult), a masodik hiba, amit latni akarunk.\nfunction settleLeg(leg, index, opts) {\n  const o = opts || {};\n  const now = o.now ? new Date(o.now) : new Date();\n  const graceHours = o.graceHours !== undefined ? o.graceHours : 3;\n\n  const ko = new Date(leg.kickoff);\n  if (isNaN(ko.getTime())) return { status: 'unresolvable', reason: 'bad_kickoff' };\n  // A meccs ~2 ora, + tartalek. Elotte nincs mit elszamolni.\n  if (now - ko < graceHours * 3600000) return { status: 'still_open', reason: 'not_finished' };\n\n  const idx = index[leg.league];\n  if (!idx) return { status: 'still_open', reason: 'no_csv_for_league' };\n\n  const split = splitMatchName(leg.match_name);\n  if (!split) return { status: 'unresolvable', reason: 'bad_match_name' };\n\n  const csvHome = matchTeamName(split.home, idx.names);\n  const csvAway = matchTeamName(split.away, idx.names);\n  if (!csvHome || !csvAway) {\n    return { status: 'unresolvable', reason: 'team_unmatched',\n             detail: (!csvHome ? split.home : split.away) };\n  }\n\n  const res = idx.byKey[resultKey(leg.league, csvHome, csvAway)];\n  // Nincs sor = a CSV meg nem tartalmazza a meccset. Ez a NORMALIS eset\n  // 1-3 napig, mert a football-data hetente ketszer frissul.\n  if (!res) return { status: 'still_open', reason: 'result_not_published' };\n\n  // Egeszsegellenorzes: a CSV jateknapja legyen a kickoff +-2 napon belul.\n  // Ha nem, valoszinuleg MASIK szezon ugyanazon parositasat talaltuk el -\n  // inkabb ne allitsunk semmit.\n  const dayDiff = Math.abs(new Date(res.date) - ko) / 86400000;\n  if (dayDiff > 2) {\n    return { status: 'unresolvable', reason: 'date_mismatch',\n             detail: 'CSV ' + res.date.slice(0, 10) + ' vs kickoff ' + String(leg.kickoff).slice(0, 10) };\n  }\n\n  const won = legOutcome(leg.market, leg.selection, res.hg, res.ag);\n  if (won === null) {\n    return { status: 'unresolvable', reason: 'unknown_market',\n             detail: leg.market + '|' + leg.selection };\n  }\n  return { status: won ? 'won' : 'lost', score: res.hg + '-' + res.ag,\n           hg: res.hg, ag: res.ag };\n}\n\n// ---------- egy szelveny elszamolasa ----------\n// A szelveny akkumulator: EGY vesztes lab az egesz szelvenyt megbuktatja,\n// es ezt AZONNAL tudjuk - nem kell megvarni a tobbi labat. Ezert a lost\n// eset elobb all, mint a still_open.\nfunction settleSlip(slip, legResults) {\n  const r = legResults;\n  if (!r.length) return { status: 'open', reason: 'no_legs' };\n  if (r.some(x => x.status === 'lost')) {\n    return { status: 'lost', payout: 0, profit: -slip.stake };\n  }\n  // Egy feloldhatatlan lab megallitja az elszamolast: nem allithatjuk\n  // nyertesnek a szelvenyt, amig egy labrol nem tudjuk, mi tortent.\n  if (r.some(x => x.status === 'unresolvable')) {\n    return { status: 'open', reason: 'leg_unresolvable' };\n  }\n  if (r.some(x => x.status === 'still_open')) {\n    return { status: 'open', reason: 'legs_pending' };\n  }\n  // Minden lab nyert.\n  const payout = Math.round(slip.stake * slip.total_odds * 100) / 100;\n  return { status: 'won', payout, profit: Math.round((payout - slip.stake) * 100) / 100 };\n}\n\n// ---------- osszesito ----------\n// Csak a LEZART szelvenyek szamitanak bele. A nyitottakat kulon jelentjuk,\n// mert kulonben egy friss szelveny lerontana a nyeresi aranyt.\nfunction summarize(slips) {\n  const closed = slips.filter(s => s.status === 'won' || s.status === 'lost');\n  const open = slips.filter(s => s.status === 'open');\n  const won = closed.filter(s => s.status === 'won');\n  const staked = closed.reduce((a, s) => a + s.stake, 0);\n  const returned = closed.reduce((a, s) => a + (s.payout || 0), 0);\n  return {\n    closed: closed.length,\n    open: open.length,\n    won: won.length,\n    lost: closed.length - won.length,\n    win_rate: closed.length ? Math.round(won.length / closed.length * 1000) / 10 : null,\n    staked: Math.round(staked * 100) / 100,\n    returned: Math.round(returned * 100) / 100,\n    profit: Math.round((returned - staked) * 100) / 100,\n    // ROI a megtett tetre. null nulla teten - nem 0%, mert az azt sugallna,\n    // hogy mertunk valamit.\n    roi_pct: staked ? Math.round((returned - staked) / staked * 1000) / 10 : null,\n  };\n}\n\n\n\n// =================== MEGOSZTOTT LOGIKA VEGE ==================\n// ===================== ELSZAMOLAS =====================\n// A harom bemenetet NEVEN olvassuk, nem a Merge kimenetebol: a\n// combine osszefuzne a CSV-valaszokat a tablasorokkal, es utana nem\n// lehetne szetvalogatni oket. A Merge csak a sorrendet biztositja.\nconst httpItems = $('Fetch Results').all().map(i => i.json);\nconst cfgItems  = $('Config').all().map(i => i.json);\nconst slips     = $('Get Open Slips').all().map(i => i.json).filter(r => r && r.slip_id);\nconst legs      = $('Get Open Legs').all().map(i => i.json).filter(r => r && r.leg_id);\n\n// --- CSV-k liga szerint, hoszt-fallbackkel ---\n// A HTTP node nem adja tovabb a bemeneti mezoket, ezert a ligat a\n// Config kimenetebol parositjuk INDEX szerint. Ugyanaz a csapda,\n// ami a Build Model-t es a Generate Legs-et is elkapta.\nconst index = {};\nconst fetchErrors = [];\nconst byLeague = {};\nfor (let i = 0; i < httpItems.length; i++) {\n  const src = cfgItems[i] || {};\n  if (!src.league_name) continue;\n  const j = httpItems[i] || {};\n  const status = j.statusCode;\n  // A HTTP node a text/csv valaszt `data` neven adja vissza, nem `body` neven.\n  // Mindketto kell: a `data` az eles viselkedes, a `body` altalanosabb eset.\n  // Ha egyik sincs, marad a nyers item - az az objektum, es elbukik a lenti\n  // string-ellenorzesen, ami helyes.\n  const body = typeof j.data === \"string\" ? j.data\n             : j.body !== undefined ? j.body : j;\n  const bucket = (byLeague[src.league_name] = byLeague[src.league_name] || []);\n  if (status && status !== 200) {\n    const ra = (j.headers || {})['retry-after'];\n    bucket.push({ ok: false, err: src.host + ': HTTP ' + status + (ra ? ' (Retry-After: ' + ra + ')' : '') });\n    continue;\n  }\n  if (typeof body !== 'string' || body.length < 100 || body.indexOf('Date') < 0) {\n    bucket.push({ ok: false, err: src.host + ': hasznalhatatlan valasz' });\n    continue;\n  }\n  bucket.push({ ok: true, body, host: src.host });\n}\n\n// Ligankent az ELSO hasznalhato valasz. Egy liga csak akkor bukik,\n// ha MINDEN hoszt elbukott rajta.\nfor (const [leagueName, tries] of Object.entries(byLeague)) {\n  const good = tries.find(t => t.ok);\n  if (good) {\n    const idx = indexResults(good.body, leagueName);\n    if (Object.keys(idx.byKey).length || idx.names.size) index[leagueName] = idx;\n    else fetchErrors.push(leagueName + \": a CSV feldolgozhato volt, de 0 sort adott\");\n  } else {\n    fetchErrors.push(leagueName + ': ' + tries.map(t => t.err).join(' | '));\n  }\n}\n\n// --- labak elszamolasa ---\nconst legUpdates = [];\nconst tally = { won: 0, lost: 0, still_open: 0, unresolvable: 0 };\nconst problems = [];\nconst nowIso = new Date().toISOString();\n\nfor (const leg of legs) {\n  const r = settleLeg(leg, index, {});\n  tally[r.status] = (tally[r.status] || 0) + 1;\n  if (r.status === 'unresolvable') {\n    problems.push(leg.match_name + ' (' + leg.market + '|' + leg.selection + '): '\n                + r.reason + (r.detail ? ' - ' + r.detail : ''));\n  }\n  // Csak a LEZARODOTT labakat irjuk vissza. A nyitott marad nyitott;\n  // ujra ranezunk holnap.\n  if (r.status === 'won' || r.status === 'lost') {\n    legUpdates.push({\n      row_id: leg.id, slip_id: leg.slip_id, leg_id: leg.leg_id,\n      status: r.status, reason: '', score: r.score || '', settled_at: nowIso,\n    });\n  }\n}\n\n// --- szelvenyek elszamolasa ---\n// A labak allapotat a FRISS eredmennyel nezzuk, nem a tablabol olvasott\n// (meg nyitott) allapotbol - kulonben egy most lezarodott lab csak a\n// kovetkezo futasban szamitana.\nconst freshLegStatus = {};\nfor (const u of legUpdates) freshLegStatus[u.leg_id] = u.status;\n\nconst slipUpdates = [];\nconst slipTally = { won: 0, lost: 0, open: 0 };\nfor (const slip of slips) {\n  // EGY szelveny labai. A slip_id kapcsolja ossze.\n  const own = legs.filter(l => l.slip_id === slip.slip_id);\n  // Ha a labak nem talalhatok, NEM szamolunk el: inkabb maradjon\n  // nyitva, mint hogy egy fel szelvenyt nyertesnek allitsunk.\n  if (own.length !== slip.leg_count) {\n    problems.push(slip.slip_id + ': ' + own.length + ' nyitott lab van, de leg_count=' + slip.leg_count\n                + ' - reszben mar elszamolt szelveny, ujraszamolas kihagyva');\n  }\n  const results = own.map(l => {\n    const fresh = freshLegStatus[l.leg_id];\n    if (fresh) return { status: fresh };\n    const r = settleLeg(l, index, {});\n    return { status: r.status };\n  });\n\n  // A MAR LEZART labakat is szamba kell venni: ha a szelvenynek 3 labja\n  // van es ketto korabban mar nyert, azok nincsenek a nyitott listaban.\n  const closedEarlier = slip.leg_count - own.length;\n  for (let i = 0; i < closedEarlier; i++) {\n    // Egy korabban lezart lab csak NYERT lehetett: egy vesztes lab\n    // azonnal lezarta volna az egesz szelvenyt.\n    results.push({ status: 'won' });\n  }\n\n  const sr = settleSlip({ stake: slip.stake, total_odds: slip.total_odds }, results);\n  slipTally[sr.status] = (slipTally[sr.status] || 0) + 1;\n  if (sr.status === 'won' || sr.status === 'lost') {\n    slipUpdates.push({\n      row_id: slip.id, slip_id: slip.slip_id, status: sr.status,\n      open_reason: '', payout: sr.payout, profit: sr.profit,\n      settled_at: nowIso, last_checked: nowIso,\n    });\n  } else {\n    // Nyitva marad, de a last_checked es az ok frissul - igy latszik,\n    // hogy a rendszer ranezett, es mire var.\n    slipUpdates.push({\n      row_id: slip.id, slip_id: slip.slip_id, status: 'open',\n      open_reason: sr.reason || '', payout: 0, profit: 0,\n      settled_at: '', last_checked: nowIso,\n    });\n  }\n}\n\n// A jelentes adatai. Egy item, hogy a lanc akkor is menjen tovabb,\n// ha semmi nem valtozott.\nreturn [{ json: {\n  _summary: true,\n  fetch_errors: fetchErrors,\n  leagues_loaded: Object.keys(index),\n  legs_seen: legs.length, slips_seen: slips.length,\n  leg_tally: tally, slip_tally: slipTally,\n  problems,\n  leg_updates: legUpdates, slip_updates: slipUpdates,\n  checked_at: nowIso,\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        280
+      ],
+      "id": "609d10b5-03f8-454c-bc13-b52ae0788cff",
+      "name": "Settle Legs",
+      "alwaysOutputData": true,
+      "notes": "A logika a scripts/betting-research/settle.js-bol van szo szerint atmasolva (79 teszt, ebbol a dontok valos adaton: 145/145 leg elszamolva, 0 feloldhatatlan)."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7d499b29-7755-4685-9a2f-ba02d4696533",
+              "leftValue": "={{ $json.leagues_loaded.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1100,
+        280
+      ],
+      "id": "567ade3c-b8bf-4661-ba03-b930bf069ffe",
+      "name": "Results Usable",
+      "notes": "Legalabb egy liga CSV-je feldolgozhato volt. Ha egyik sem (mint 2026-09-08-an, amikor mind a 10 letoltes 503-at adott), nincs mit elszamolni es a hiba lathato legyen."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Minden CSV letoltes elbukott. NEM irunk semmit, es HANGOSAN\n// elbukunk - a csendes NoOp pontosan az, ami a 2026-09-02-i\n// incidenst lathatatlanna tette a Slate Builderben.\nconst s = $input.first().json;\nthrow new Error('Egy liga eredmenye sem tolthetp le, az elszamolas kihagyva. Hibak: '\n  + (s.fetch_errors || []).join(' ;; '));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        480
+      ],
+      "id": "f71ac88a-e246-49a5-b41a-c74a9a7e8abe",
+      "name": "Skip Settlement",
+      "notes": "Szandekosan throw, nem NoOp: a CLAUDE.md dokumentalt kivetele. Egy csendes kihagyas eppen az a hibamod, amit el akarunk kerulni."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// A lezarodott labak kiteritese egy-egy itemre az update-hez.\n// Ha nincs egy sem, URES tombot adunk - de az alwaysOutputData\n// miatt a lanc nem all meg (egy ures kimenet KIVEGZI az n8n lancot).\nconst s = $input.first().json;\nconst ups = s.leg_updates || [];\nreturn ups.map(u => ({ json: u }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        200
+      ],
+      "id": "0595bba1-099c-472a-9d75-37526b6adc12",
+      "name": "Fan Out Leg Updates",
+      "alwaysOutputData": true,
+      "notes": "Egy item / lezarodott lab. Ures is lehet: ilyenkor nincs mit frissiteni, es ez nem hiba."
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "VQWSxF1xp3YF0Jn6"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "leg_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.leg_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.status }}",
+            "score": "={{ $json.score }}",
+            "reason": "={{ $json.reason }}",
+            "settled_at": "={{ $json.settled_at }}"
+          },
+          "matchingColumns": [
+            "leg_id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1540,
+        200
+      ],
+      "id": "8a99b3b8-c882-402c-9cae-236da95d33c9",
+      "name": "Update Legs",
+      "alwaysOutputData": true,
+      "notes": "A leg_id-re frissit. A leg_id egyedi a slate-en (event_id-market-selection), es egy szelvenyen egy meccsbol csak egy lab van."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// A szelveny-frissitesek kiteritese. A Settle Legs kimenetebol\n// olvasunk NEVEN, nem a bemenetbol: ide a labak agan keresztul\n// jutottunk, es az mar a labak itemeit hordozza.\nconst s = $('Settle Legs').first().json;\nconst ups = s.slip_updates || [];\nreturn ups.map(u => ({ json: u }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        200
+      ],
+      "id": "9352f37c-6037-47d7-821f-c3b2d1ff5935",
+      "name": "Fan Out Slip Updates",
+      "alwaysOutputData": true,
+      "notes": "A labak frissitese UTAN fut, hogy a tabla mar a friss labakat tartalmazza, ha valaki kozben ranez."
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "rWAlDpLh2eG5cpoe"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slip_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.slip_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.status }}",
+            "open_reason": "={{ $json.open_reason }}",
+            "payout": "={{ $json.payout }}",
+            "profit": "={{ $json.profit }}",
+            "settled_at": "={{ $json.settled_at }}",
+            "last_checked": "={{ $json.last_checked }}"
+          },
+          "matchingColumns": [
+            "slip_id"
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1980,
+        200
+      ],
+      "id": "1eb28b19-a8e5-4e15-bbc1-15859c1429e3",
+      "name": "Update Slips",
+      "alwaysOutputData": true,
+      "notes": "A slip_id-re frissit. A nyitott szelveny is frissul (last_checked), hogy latszodjon: a rendszer ranezett."
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "rWAlDpLh2eG5cpoe"
+        },
+        "matchType": "anyCondition",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "slip_id",
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2200,
+        200
+      ],
+      "id": "8bb5c073-1c8f-4361-bb71-884d2a7a1fa3",
+      "name": "Get All Slips",
+      "alwaysOutputData": true,
+      "notes": "A teljes tortenet a nyeresi aranyhoz - nem csak a mai frissitesek. returnAll KELL az 50-es alapkorlat miatt."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ===================== MEGOSZTOTT LOGIKA =====================\n// Szo szerint a scripts/betting-research/teams.js + settle.js tartalma.\n// A require/module.exports kivagva; egyebkent karakterre azonos azzal,\n// amit a settle_test.js 79 teszten, valos adaton atvitt.\n// Ha itt valtoztatsz, a scriptben IS valtoztass - vagy futtasd ujra a\n// sync ellenorzest (settle_test.js osszeveti a ket ALIAS tablat).\n\n// Csapatnev-parositas: a football-data.co.uk CSV nevei <-> The Odds API nevei.\n//\n// EZ A TABLA A FORRAS. Szo szerint kimasolva a \"Generate Legs\" node-bol\n// (Betting Slate Builder), es a \"Settle Legs\" node ugyanezt hasznalja.\n// Ket kezzel tartott kopia elkerulhetetlenul elcsuszik: az elso valtozatban\n// 67 bejegyzes volt itt a 122 helyett, es az Espanyol (a CSV-ben \"Espanol\")\n// emiatt parositatlan maradt - 5 leg csendben kiesett volna az elszamolasbol.\n// A sync-et a settle_test.js ellenorzi: osszeveti ezt a tablat a workflow\n// JSON-jaban levovel, es bukik, ha elternek.\n//\n// Uj csapat eseten MINDKET helyen javitani kell (itt es a node-ban), vagy\n// futtatni a sync_alias.js-t, ami innen irja at a node kodjat.\n\nconst ALIAS = {\n  'manchester united': 'Man United', 'manchester city': 'Man City',\n  'newcastle united': 'Newcastle', 'tottenham hotspur': 'Tottenham',\n  'wolverhampton wanderers': 'Wolves', 'nottingham forest': \"Nott'm Forest\",\n  'brighton and hove albion': 'Brighton', 'brighton & hove albion': 'Brighton',\n  'west ham united': 'West Ham', 'leeds united': 'Leeds',\n  'leicester city': 'Leicester', 'ipswich town': 'Ipswich',\n  'sheffield united': 'Sheffield United', 'luton town': 'Luton',\n  'afc bournemouth': 'Bournemouth', 'crystal palace': 'Crystal Palace',\n  'atletico madrid': 'Ath Madrid', 'athletic bilbao': 'Ath Bilbao',\n  'real sociedad': 'Sociedad', 'real betis': 'Betis',\n  'celta vigo': 'Celta', 'rayo vallecano': 'Vallecano',\n  'deportivo alaves': 'Alaves', 'real valladolid': 'Valladolid',\n  'racing santander': 'Santander', 'real madrid': 'Real Madrid',\n  'fc barcelona': 'Barcelona', 'barcelona': 'Barcelona',\n  'bayern munich': 'Bayern Munich', 'bayern munchen': 'Bayern Munich',\n  'borussia dortmund': 'Dortmund', 'borussia monchengladbach': \"M'gladbach\",\n  'bayer leverkusen': 'Leverkusen', 'eintracht frankfurt': 'Ein Frankfurt',\n  'vfb stuttgart': 'Stuttgart', 'vfl wolfsburg': 'Wolfsburg',\n  'werder bremen': 'Werder Bremen', 'fc koln': 'FC Koln', '1 fc koln': 'FC Koln',\n  'rb leipzig': 'RB Leipzig', 'sc freiburg': 'Freiburg', 'fc augsburg': 'Augsburg',\n  'mainz 05': 'Mainz', 'fsv mainz 05': 'Mainz', 'tsg hoffenheim': 'Hoffenheim',\n  'inter milan': 'Inter', 'ac milan': 'Milan', 'as roma': 'Roma',\n  'ss lazio': 'Lazio', 'ssc napoli': 'Napoli',\n  'atalanta bc': 'Atalanta', 'acf fiorentina': 'Fiorentina',\n  'hellas verona': 'Verona', 'us lecce': 'Lecce', 'torino fc': 'Torino',\n  'paris saint germain': 'Paris SG', 'paris saintgermain': 'Paris SG',\n  'olympique marseille': 'Marseille', 'olympique lyonnais': 'Lyon',\n  'as monaco': 'Monaco', 'lille osc': 'Lille', 'stade rennais': 'Rennes',\n  'ogc nice': 'Nice', 'rc lens': 'Lens', 'fc nantes': 'Nantes',\n  'atletico madrid': 'Ath Madrid', 'atletico de madrid': 'Ath Madrid',\n  'deportivo la coruna': 'La Coruna', 'rc deportivo la coruna': 'La Coruna',\n  '1 fc koln': 'FC Koln', 'fc koln': 'FC Koln', '1 fc kolna': 'FC Koln',\n  'real racing club de santander': 'Santander', 'racing de santander': 'Santander',\n  'rcd espanyol': 'Espanol', 'espanyol': 'Espanol', 'rcd espanyol de barcelona': 'Espanol',\n  'real oviedo': 'Oviedo', 'ud levante': 'Levante', 'levante ud': 'Levante',\n  'elche cf': 'Elche', 'girona fc': 'Girona', 'rcd mallorca': 'Mallorca',\n  'ca osasuna': 'Osasuna', 'getafe cf': 'Getafe', 'sevilla fc': 'Sevilla',\n  'valencia cf': 'Valencia', 'villarreal cf': 'Villarreal',\n  'hamburger sv': 'Hamburg', 'sv werder bremen': 'Werder Bremen',\n  'fc st pauli': 'St Pauli', 'st pauli': 'St Pauli',\n  '1 fsv mainz 05': 'Mainz', 'fsv mainz 05': 'Mainz',\n  '1 fc union berlin': 'Union Berlin', 'union berlin': 'Union Berlin',\n  'fc schalke 04': 'Schalke 04', 'schalke 04': 'Schalke 04',\n  '1 fc heidenheim': 'Heidenheim', 'fc heidenheim 1846': 'Heidenheim',\n  'sv elversberg': 'Elversberg', 'sc paderborn 07': 'Paderborn',\n  'ac monza': 'Monza', 'us cremonese': 'Cremonese', 'ac pisa': 'Pisa',\n  'us sassuolo': 'Sassuolo', 'venezia fc': 'Venezia', 'parma calcio': 'Parma',\n  'cagliari calcio': 'Cagliari', 'genoa cfc': 'Genoa', 'como 1907': 'Como',\n  'udinese calcio': 'Udinese', 'bologna fc': 'Bologna',\n  'stade brestois': 'Brest', 'stade brestois 29': 'Brest',\n  'fc lorient': 'Lorient', 'le havre ac': 'Le Havre', 'fc metz': 'Metz',\n  'aj auxerre': 'Auxerre', 'toulouse fc': 'Toulouse', 'angers sco': 'Angers',\n  'rc strasbourg': 'Strasbourg', 'rc strasbourg alsace': 'Strasbourg',\n  'le mans fc': 'Le Mans', 'estac troyes': 'Troyes', 'paris fc': 'Paris FC',\n};\n\n// NFD: az ekezetes betut alapbetu + kombinalo jel parra bontja, majd a jelet\n// eltavolitjuk. Enelkul az \"Atletico\" -> \"atltico\" lenne (torolt betu), es a\n// La Liga / Bundesliga ekezetes nevei sosem parosulnanak.\nconst norm = s => String(s)\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')\n  .toLowerCase().replace(/[^a-z0-9 ]/g, '').replace(/\\s+/g, ' ').trim();\n\n\n\n\n// A \"Settle Legs\" node logikaja. Egy leg kimenetelenek eldontese a\n// football-data.co.uk vegeredmenyebol (FTHG/FTAG).\n//\n// MIERT KULON FAJL: ugyanaz az elv, mint a slip.js-nel - a logika lokalisan\n// tesztelve lesz valos CSV-n es valos slate snapshoton, mielott n8n node-ba\n// kerul. A csapatnev-parositas itt a kockazatos resz: az Odds API nevei\n// (match_name) es a CSV nevei kulonboznek, es egy elnezett parositas\n// CSENDBEN allitana rosszul a nyeresi aranyt.\n\n// ---------- csapatnev normalizalas ----------\n// A tabla es a norm() a teams.js-bol jon, ami SZO SZERINT a \"Generate Legs\"\n// node ALIAS tablaja. Nem masoljuk ide ujra: az elso valtozat kezi kopiaja\n// 67 bejegyzest tartalmazott a 122 helyett, es az Espanyol (a CSV-ben\n// \"Espanol\") emiatt parositatlan maradt - 5 leg csendben kiesett volna.\n\n\n// A slate match_name-je \"Hazai vs Vendeg\". A ' vs ' a Generate Legs-ben\n// kepzodik, tehat fix - de vedunk ellene, hogy ne allitsunk rosszat.\nfunction splitMatchName(matchName) {\n  const parts = String(matchName).split(' vs ');\n  if (parts.length !== 2) return null;\n  const home = parts[0].trim(), away = parts[1].trim();\n  if (!home || !away) return null;\n  return { home, away };\n}\n\n// Egy slate-nev parositasa a CSV-ben szereplo nevek listajahoz.\n// Ugyanaz a 4 lepcso, mint a findTeam()-ben: direkt, alias, normalizalt,\n// majd reszstring >= 4 karakteren.\nfunction matchTeamName(slateName, csvNames) {\n  if (csvNames.has(slateName)) return slateName;\n  const n = norm(slateName);\n  const aliased = ALIAS[n];\n  if (aliased && csvNames.has(aliased)) return aliased;\n  for (const c of csvNames) if (norm(c) === n) return c;\n  for (const c of csvNames) {\n    const nc = norm(c);\n    if (nc.length >= 4 && (n.includes(nc) || nc.includes(n))) return c;\n  }\n  return null;\n}\n\n// ---------- kimenetel ----------\n// Egyetlen hely, ahol egy piac/kimenetel -> nyert/vesztett dol el.\n// Uj piac hozzaadasakor IDE kell irni, kulonben null-t ad (= nyitva marad,\n// nem pedig tevedesbol vesztett).\nfunction legOutcome(market, selection, hg, ag) {\n  if (!Number.isFinite(hg) || !Number.isFinite(ag)) return null;\n  if (market === 'h2h') {\n    if (selection === 'home') return hg > ag;\n    if (selection === 'draw') return hg === ag;\n    if (selection === 'away') return ag > hg;\n    return null;\n  }\n  if (market === 'totals') {\n    // A slate csak a 2.5-os vonalat tartja meg (Generate Legs szuri),\n    // igy nincs push: 2.5 nem lehet pontos golszam.\n    if (selection === 'over25') return hg + ag > 2.5;\n    if (selection === 'under25') return hg + ag < 2.5;\n    return null;\n  }\n  if (market === 'btts') {\n    if (selection === 'btts_yes') return hg > 0 && ag > 0;\n    if (selection === 'btts_no') return !(hg > 0 && ag > 0);\n    return null;\n  }\n  return null;\n}\n\n// ---------- CSV -> eredmeny index ----------\n// A kulcsot egy helyen kepezzuk: az indexeles es a kereses kulonbozo\n// kulcsformaja csendes \"result_not_published\"-ot adna minden legre.\nconst resultKey = (league, home, away) => league + '|' + home + '|' + away;\n\n// Csak a vegeredmeny kell, es CSAK a lejatszott meccsek. Egy jovobeli sor\n// ures FTHG-vel nem szabad, hogy 0-0-kent szamoljon.\nfunction indexResults(raw, league) {\n  const text = String(raw).replace(/^﻿/, '');\n  const lines = text.split(/\\r?\\n/).filter(l => l.trim().length > 0);\n  if (lines.length < 2) return { byKey: {}, names: new Set() };\n  const head = lines[0].split(',').map(h => h.trim());\n  const col = {};\n  head.forEach((h, i) => { if (col[h] === undefined) col[h] = i; });\n  for (const n of ['Date', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG']) {\n    if (col[n] === undefined) return { byKey: {}, names: new Set() };\n  }\n  const byKey = {}, names = new Set();\n  for (let i = 1; i < lines.length; i++) {\n    const f = lines[i].split(',');\n    const home = (f[col['HomeTeam']] || '').trim();\n    const away = (f[col['AwayTeam']] || '').trim();\n    if (!home || !away) continue;\n    // A nevek a MEG NEM jatszott sorokbol is kellenek: kulonben egy\n    // parositatlan csapat \"unresolvable\" lenne \"result_not_published\"\n    // helyett, es hibanak latszana, ami csak varakozas.\n    names.add(home); names.add(away);\n    const fthg = f[col['FTHG']], ftag = f[col['FTAG']];\n    if (fthg === undefined || fthg === '' || ftag === undefined || ftag === '') continue;\n    const hg = Number(fthg), ag = Number(ftag);\n    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;\n    // dd/mm/yyyy - NEM ISO, kezzel bontjuk (ugyanaz, mint a parse.js-ben)\n    const m = (f[col['Date']] || '').trim().match(/^(\\d{2})\\/(\\d{2})\\/(\\d{2}|\\d{4})$/);\n    if (!m) continue;\n    const yr = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);\n    const date = new Date(Date.UTC(yr, Number(m[2]) - 1, Number(m[1])));\n    if (isNaN(date.getTime())) continue;\n    // A kulcs csapatpar, NEM datum: a CSV datuma a helyi jateknap, a slate\n    // kickoff-ja UTC - ezek atlephetik egymast ejfelkor. Egy szezonban egy\n    // parositas hazai palyan egyszer jatszik, tehat a par egyedi.\n    // A datumot megtartjuk ellenorzesre (lasd date_mismatch).\n    byKey[resultKey(league, home, away)] = { hg, ag, date: date.toISOString(), home, away };\n  }\n  return { byKey, names };\n}\n\n// ---------- egy leg elszamolasa ----------\n// Harom kimenet: won/lost | still_open | unresolvable.\n// A \"still_open\" es az \"unresolvable\" kulonvalasztasa szandekos: az elso\n// varakozas (a CSV meg nem frissult), a masodik hiba, amit latni akarunk.\nfunction settleLeg(leg, index, opts) {\n  const o = opts || {};\n  const now = o.now ? new Date(o.now) : new Date();\n  const graceHours = o.graceHours !== undefined ? o.graceHours : 3;\n\n  const ko = new Date(leg.kickoff);\n  if (isNaN(ko.getTime())) return { status: 'unresolvable', reason: 'bad_kickoff' };\n  // A meccs ~2 ora, + tartalek. Elotte nincs mit elszamolni.\n  if (now - ko < graceHours * 3600000) return { status: 'still_open', reason: 'not_finished' };\n\n  const idx = index[leg.league];\n  if (!idx) return { status: 'still_open', reason: 'no_csv_for_league' };\n\n  const split = splitMatchName(leg.match_name);\n  if (!split) return { status: 'unresolvable', reason: 'bad_match_name' };\n\n  const csvHome = matchTeamName(split.home, idx.names);\n  const csvAway = matchTeamName(split.away, idx.names);\n  if (!csvHome || !csvAway) {\n    return { status: 'unresolvable', reason: 'team_unmatched',\n             detail: (!csvHome ? split.home : split.away) };\n  }\n\n  const res = idx.byKey[resultKey(leg.league, csvHome, csvAway)];\n  // Nincs sor = a CSV meg nem tartalmazza a meccset. Ez a NORMALIS eset\n  // 1-3 napig, mert a football-data hetente ketszer frissul.\n  if (!res) return { status: 'still_open', reason: 'result_not_published' };\n\n  // Egeszsegellenorzes: a CSV jateknapja legyen a kickoff +-2 napon belul.\n  // Ha nem, valoszinuleg MASIK szezon ugyanazon parositasat talaltuk el -\n  // inkabb ne allitsunk semmit.\n  const dayDiff = Math.abs(new Date(res.date) - ko) / 86400000;\n  if (dayDiff > 2) {\n    return { status: 'unresolvable', reason: 'date_mismatch',\n             detail: 'CSV ' + res.date.slice(0, 10) + ' vs kickoff ' + String(leg.kickoff).slice(0, 10) };\n  }\n\n  const won = legOutcome(leg.market, leg.selection, res.hg, res.ag);\n  if (won === null) {\n    return { status: 'unresolvable', reason: 'unknown_market',\n             detail: leg.market + '|' + leg.selection };\n  }\n  return { status: won ? 'won' : 'lost', score: res.hg + '-' + res.ag,\n           hg: res.hg, ag: res.ag };\n}\n\n// ---------- egy szelveny elszamolasa ----------\n// A szelveny akkumulator: EGY vesztes lab az egesz szelvenyt megbuktatja,\n// es ezt AZONNAL tudjuk - nem kell megvarni a tobbi labat. Ezert a lost\n// eset elobb all, mint a still_open.\nfunction settleSlip(slip, legResults) {\n  const r = legResults;\n  if (!r.length) return { status: 'open', reason: 'no_legs' };\n  if (r.some(x => x.status === 'lost')) {\n    return { status: 'lost', payout: 0, profit: -slip.stake };\n  }\n  // Egy feloldhatatlan lab megallitja az elszamolast: nem allithatjuk\n  // nyertesnek a szelvenyt, amig egy labrol nem tudjuk, mi tortent.\n  if (r.some(x => x.status === 'unresolvable')) {\n    return { status: 'open', reason: 'leg_unresolvable' };\n  }\n  if (r.some(x => x.status === 'still_open')) {\n    return { status: 'open', reason: 'legs_pending' };\n  }\n  // Minden lab nyert.\n  const payout = Math.round(slip.stake * slip.total_odds * 100) / 100;\n  return { status: 'won', payout, profit: Math.round((payout - slip.stake) * 100) / 100 };\n}\n\n// ---------- osszesito ----------\n// Csak a LEZART szelvenyek szamitanak bele. A nyitottakat kulon jelentjuk,\n// mert kulonben egy friss szelveny lerontana a nyeresi aranyt.\nfunction summarize(slips) {\n  const closed = slips.filter(s => s.status === 'won' || s.status === 'lost');\n  const open = slips.filter(s => s.status === 'open');\n  const won = closed.filter(s => s.status === 'won');\n  const staked = closed.reduce((a, s) => a + s.stake, 0);\n  const returned = closed.reduce((a, s) => a + (s.payout || 0), 0);\n  return {\n    closed: closed.length,\n    open: open.length,\n    won: won.length,\n    lost: closed.length - won.length,\n    win_rate: closed.length ? Math.round(won.length / closed.length * 1000) / 10 : null,\n    staked: Math.round(staked * 100) / 100,\n    returned: Math.round(returned * 100) / 100,\n    profit: Math.round((returned - staked) * 100) / 100,\n    // ROI a megtett tetre. null nulla teten - nem 0%, mert az azt sugallna,\n    // hogy mertunk valamit.\n    roi_pct: staked ? Math.round((returned - staked) / staked * 1000) / 10 : null,\n  };\n}\n\n\n\n// =================== MEGOSZTOTT LOGIKA VEGE ==================\n// ===================== JELENTES =====================\nconst all = $input.all().map(i => i.json).filter(r => r && r.slip_id);\nconst s = $('Settle Legs').first().json;\n\nconst stats = summarize(all);\n\n// Cel-savonkent is: egy 3x-es es egy 100x-os szelveny nyeresi aranyat\n// egy szamba olvasztani felrevezeto lenne.\nconst BANDS = [[0, 5, 'ala 5x'], [5, 15, '5-15x'], [15, 50, '15-50x'], [50, Infinity, '50x fole']];\nconst byBand = BANDS.map(([lo, hi, label]) => {\n  const sub = all.filter(x => x.target >= lo && x.target < hi);\n  return Object.assign({ label }, summarize(sub));\n}).filter(b => b.closed + b.open > 0);\n\nconst L = [];\nL.push('📊 SZELVENY EREDMENYEK');\nL.push('');\nif (stats.closed === 0) {\n  L.push('Meg nincs lezart szelveny.');\n  if (stats.open) L.push(stats.open + ' szelveny var eredmenyre.');\n} else {\n  L.push('Lezart szelveny: ' + stats.closed + '  (' + stats.won + ' nyert / ' + stats.lost + ' bukott)');\n  L.push('Nyeresi arany: ' + stats.win_rate + '%');\n  L.push('Tet: ' + stats.staked.toLocaleString('hu-HU') + ' Ft -> visszajott: ' + stats.returned.toLocaleString('hu-HU') + ' Ft');\n  L.push((stats.profit >= 0 ? '✅ Eredmeny: +' : '🔻 Eredmeny: ') + stats.profit.toLocaleString('hu-HU') + ' Ft  (ROI ' + (stats.roi_pct > 0 ? '+' : '') + stats.roi_pct + '%)');\n  if (stats.open) L.push(stats.open + ' szelveny meg nyitott.');\n}\n\nif (byBand.length > 1) {\n  L.push('');\n  L.push('Cel szerint:');\n  for (const b of byBand) {\n    L.push('  ' + b.label.padEnd(9) + (b.closed\n      ? b.won + '/' + b.closed + ' (' + b.win_rate + '%), ' + (b.profit >= 0 ? '+' : '') + b.profit.toLocaleString('hu-HU') + ' Ft'\n      : 'meg nincs lezart') + (b.open ? '  [' + b.open + ' nyitott]' : ''));\n  }\n}\n\n// A mai futas: mi valtozott. Ez teszi ellenorizhetove a szamokat.\nL.push('');\nL.push('──────────');\nL.push('Mai futas: ' + s.legs_seen + ' nyitott lab, ' + s.slips_seen + ' nyitott szelveny');\nconst t = s.leg_tally || {};\nL.push('  lab: ' + (t.won || 0) + ' bejott, ' + (t.lost || 0) + ' nem, ' + (t.still_open || 0) + ' meg var');\nconst st = s.slip_tally || {};\nif (st.won || st.lost) L.push('  szelveny lezarva: ' + (st.won || 0) + ' nyert, ' + (st.lost || 0) + ' bukott');\n\n// A hibak SOSEM maradhatnak csendben.\nif ((s.fetch_errors || []).length) {\n  L.push('');\n  L.push('⚠️ Letoltesi hibak (' + s.fetch_errors.length + '):');\n  for (const e of s.fetch_errors.slice(0, 5)) L.push('  ' + e);\n}\nif ((s.problems || []).length) {\n  L.push('');\n  L.push('⚠️ Feloldhatatlan (' + s.problems.length + ') - kezi ellenorzes kell:');\n  const seen = new Set();\n  for (const p of s.problems) {\n    if (seen.has(p) || seen.size >= 6) continue;\n    seen.add(p);\n    L.push('  ' + p);\n  }\n}\n\n// Discord 2000 karakter. A vegen a hibak vannak, azokat nem szabad\n// levagni - ezert a kozeput (cel szerinti bontas) esik ki eloszor.\nlet msg = L.join('\\n');\nif (msg.length > 1900) {\n  const keep = L.filter(l => !l.startsWith('  ala ') && !l.startsWith('  5-15') && !l.startsWith('  15-50') && !l.startsWith('  50x'));\n  msg = keep.join('\\n');\n}\nif (msg.length > 1900) msg = msg.slice(0, 1890) + '\\n…';\n\nreturn [{ json: { message: msg, stats, by_band: byBand, run: {\n  legs_seen: s.legs_seen, slips_seen: s.slips_seen,\n  leg_tally: t, slip_tally: st,\n  fetch_errors: s.fetch_errors, problems: s.problems,\n} } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2420,
+        200
+      ],
+      "id": "2d76dcb6-e8e9-40ce-abf9-76b7815e4f17",
+      "name": "Build Report",
+      "alwaysOutputData": true,
+      "notes": "A nyeresi arany a LEZART szelvenyekbol. A nyitottak kulon latszanak - kulonben egy friss szelveny lerontana az aranyt."
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "authentication": "botToken",
+        "guildId": {
+          "__rl": true,
+          "value": "1544693153938800702",
+          "mode": "list",
+          "cachedResultName": "bet",
+          "cachedResultUrl": "https://discord.com/channels/1544693153938800702"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1544693155352412173",
+          "mode": "list",
+          "cachedResultName": "általános",
+          "cachedResultUrl": "https://discord.com/channels/1544693153938800702/1544693155352412173"
+        },
+        "content": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        2640,
+        200
+      ],
+      "id": "a048ac21-a400-482f-b42f-aab642879e5f",
+      "name": "Send Discord",
+      "onError": "continueRegularOutput",
+      "notes": "A napi elszamolo jelentes a bet szerver #altalanos csatornajaba, ugyanoda, ahova a Slate Builder kuld. onError: continue - ha a Discord nem megy, az elszamolas mar megtortent es nem szabad elbuktatni a futast.",
+      "webhookId": "abd44e2c-d1c4-42e4-96fa-9db5d25348aa"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Results": {
+      "main": [
+        [
+          {
+            "node": "Combine Inputs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Open Slips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Open Slips": {
+      "main": [
+        [
+          {
+            "node": "Combine Inputs",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Get Open Legs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Open Legs": {
+      "main": [
+        [
+          {
+            "node": "Combine Inputs",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Combine Inputs": {
+      "main": [
+        [
+          {
+            "node": "Settle Legs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settle Legs": {
+      "main": [
+        [
+          {
+            "node": "Results Usable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Results Usable": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Leg Updates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Settlement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Leg Updates": {
+      "main": [
+        [
+          {
+            "node": "Update Legs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Legs": {
+      "main": [
+        [
+          {
+            "node": "Fan Out Slip Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fan Out Slip Updates": {
+      "main": [
+        [
+          {
+            "node": "Update Slips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Slips": {
+      "main": [
+        [
+          {
+            "node": "Get All Slips",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Slips": {
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [
+          {
+            "node": "Send Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

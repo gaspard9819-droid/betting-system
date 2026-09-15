@@ -214,6 +214,18 @@ node settle_test.js
   writes a **0-byte file** and exits 0, and the failure only surfaces at the parser. Use
   `curl -sfL`. This is the second time this shape of bug has cost a cycle here — the first
   was the 489-byte HTML error page landing as a `.csv`.
+- **A mock that agrees with you proves nothing (2026-09-15).** `settle_wf_test.js` fed the
+  node `{ statusCode, body }`. The n8n HTTP Request node returns a `text/csv` response
+  under **`data`**, not `body` — so on the first live run (execution 156) all ten
+  perfectly good `200 OK` CSVs were rejected as `hasznalhatatlan valasz`, and not one
+  league loaded. **76 checks had passed** against the wrong shape: the test was
+  confirming its own assumption, and the one thing it could not catch was the assumption
+  itself. The guard did its job — zero rows written, the run failed loudly — but the
+  settlement would never have run.
+  Fixed both sides: the node accepts `data` and `body`, and the test now feeds the real
+  shape, asserts **both** forms load, and asserts an unknown key correctly *fails*.
+  **Rule: for any node reading an HTTP response, take the mock's shape from a real
+  execution's output, not from what the field ought to be called.**
 
 ## Profitability review (2026-09-12)
 
