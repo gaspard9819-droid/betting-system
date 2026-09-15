@@ -247,6 +247,7 @@ the model is measured against it, not the other way round.
 | `tippmix_direct.js` | **The one that fits the shipped curve.** Pairs the live slate run's own `market_avg_odds` with real Tippmixpro prices — no reference correction, no estimate. Extend this one with new prices. |
 | `tippmix_feed.js` | **Collects those prices automatically**, from Tippmixpro's own odds feed. No browser, no dependencies, no login. `--pair <slate.json>` writes a `slate_pairs_*.json` in the shape `tippmix_direct.js` reads. See "Collecting prices from the feed" below. |
 | `collect.js` | **The one to actually run.** Reads the fresh slate out of n8n, calls `tippmix_feed.js`, and scores the shipped curve against the real prices — one command, so the two halves cannot drift apart in time. |
+| `devig_check.js` | Does the de-vig method matter, and is `market_prob` calibrated? Written to test a claim from outside repos; the answer turned out to be "not the de-vig, but yes there is a bias". Run from `data/`. |
 | `timing.js` | Does betting earlier pay? Opening vs closing price on the legs the builder actually picks, per market and odds band, with a paired significance test. Run from `data/`. |
 | `tippmix_calib.js` | The withdrawn first attempt: matches prices against `fixtures.csv` averages. Kept because its overround and book-set findings stand. Run from `data/`. |
 | `tippmix_calib_check.js` | The three things ruled out before believing that calibration: opening-vs-closing timing, book-set differences, sample representativeness. Run from `data/`. |
@@ -543,3 +544,57 @@ built from that same average. The `EV(fair) ≥ 1.00` of the max-EV strategy in
 an edge. Use the band tables (no selection) for expected values and realized leg ROI for
 selection tests. The same winner's curse is why the empirical simulation prefers fewer
 legs while the analytic curve does not.
+
+## What six public betting repos were worth (2026-09-15)
+
+Six repos reviewed in parallel: `georgedouzas/sports-betting` (791★), `jdgoated1/football-predictor`, `zakariae-boui/football-prediction-ml`, `aykan2004/quantbet`, `Reymes/football-match-prediction`, `wlrwx/football-engine`.
+
+**Not one of them claims to beat the market, and three document the opposite in detail.**
+`quantbet`: 11 weeks live paper trading, 164 bets, −18.3% ROI, and the author shoots down
+his own v1 at six sigma. `football-prediction-ml`: −2.9% ROI, negative CLV, README
+headline "Every model loses to the margin". `Reymes`: paired test, market 1.0026 vs
+ensemble 1.0025, p=0.957, "not statistically distinguishable". Independent confirmation of
+what was already measured here on 7228 matches.
+
+**Most of what they recommended was already in place**: closing odds (`odds_loader.js`
+loads them, `timing.js` uses them in 11 places), Pinnacle as reference (6228 closing
+prices), walk-forward, Kelly, EV. On line shopping and multi-book handling this repo is
+ahead of all six — `quantbet` takes `bookmakers[0]` blind.
+
+### The one testable claim, and what testing it found
+
+Two repos claimed multiplicative de-vig (`p_i / sum`) is systematically biased and the
+**power de-vig** (solve `sum(p_i^k) = 1` for k) is better. Tested here rather than
+believed — `devig_check.js`, 7228 matches:
+
+- **On a priced reference it is true.** Log-loss Pinnacle closing 0.96302 → **0.96245**,
+  market average 0.96336 → **0.96243** (best of all six combinations).
+- **On ours it barely moves**, because `Generate Legs` de-vigs `best` (MaxC), whose mean
+  overround is **−0.03%** — there is no margin to redistribute. The 5.0+ band shifts
+  14.35% → 14.30%. Not worth swapping.
+- **But the bias is real, and it is not the de-vig.** The deployed `market_prob`
+  understates favourites by **1.32pp** (71.88% vs 73.19% actual, 1.0–1.6 band) and
+  overstates long legs by **1.09pp** (14.35% vs 13.26%, 5.0+). That comes from the MaxC
+  reference itself: on long legs the "best available price" is routinely one outlier book
+  paying too much, and turning that into a probability yields an over-optimistic number.
+
+**What it means for the slip builder:** selection by `market_prob` sees long legs as
+better than they are. The @5.00 ceiling covers part of it, but the 3.2–5.0 band is
+affected too. **Open question:** whether `market_prob` should come from the market average
+instead of MaxC. Measure it on `slip.js` first — never on the deployed node.
+
+### Leads not followed up
+
+- **FBref predicted-XI scraper** (`football-predictor`, `api/sources.py:predicted_xi`) —
+  free lineup proxy from lineup frequency, no injury API needed. No lineup data here today.
+- **DJYY API** (`football-engine`, `docs/DEEP_DIVE_report.md`) — claims free unauthenticated
+  referee card averages, weather, corners by league, and Pinnacle opening odds. Unofficial,
+  no SLA, may already be behind a paywall. **Unverified** — would need checking before use.
+- **CLV as the evaluation metric.** Three repos converge on this: at 160–220 bets a ROI
+  confidence interval is too wide to conclude anything, while a calibration test resolves
+  in weeks. `Bet Settlement` currently reports ROI and win rate.
+- **Match-day block bootstrap** (`Reymes/significance.py`) — matches on one day are
+  correlated, so i.i.d. bootstrap gives intervals that are too narrow.
+
+**Checked and not applicable:** the DNB pricing trap two repos warn about needs a
+push-capable market; this system runs `h2h`, `totals` and `btts` only.
