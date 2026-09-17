@@ -1,3 +1,10 @@
+// A Vegas bonusz margo-erzekenysege: mennyit er a boost-piacon forgatni?
+//
+// RESZBEN MEGHALADOTT (2026-09-17): a margo-osszevetes ervenyes, a 2000 Ft-os FIX TET
+// viszont nem teljesitheto. A szabalyzat szerint a forgatasra 240 ora (10 nap) van,
+// nem 3.5 honap — 2000 Ft-tal az 250 fogadas lenne. A helyes modell korokben szamol:
+// lasd vegas_rollover.js.
+
 function sim(bonus, rollover, odds, margin, trials, stake) {
   const outs = [];
   for (let t = 0; t < trials; t++) {

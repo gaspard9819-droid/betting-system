@@ -138,7 +138,9 @@ hozzáadott értéke**, és nem igényel se lay-oldalt, se jóslást.
 
 ### A tétméret nem az EV-t mozgatja, hanem a szórást
 
-Tippmixpro 3×, min 2.00, 10 000 Ft bónusz:
+**Ez a táblázat TIPPMIXPRO-feltételekre vonatkozik** (3× forgatás, min 2.00,
+10 000 Ft bónusz) — `bonus_sens.js`. A Vegasra nem vihető át, lásd a következő
+szakaszt.
 
 | tét | EV | medián | nullával zár |
 |---|---|---|---|
@@ -151,9 +153,69 @@ Az EV végig 8 400–8 900 között van — gyakorlatilag lapos. A **medián** v
 10 000-ről nullára zuhan, és a bukás esélye 12%-ról 66%-ra megy. Egyetlen nagy
 tét mediánban nullát hoz, miközben az EV-je a legmagasabb.
 
-**Ez a rendszer fő tanácsa lesz: sok kis tét, nem kevés nagy.** Ez az EV-t nem
-rontja, a lenullázás esélyét viszont 66%-ról 12%-ra viszi. Egy EV-t maximalizáló
-kalkulátor ezt magától elrontaná — a tétméretet külön szabályként kell kezelni.
+Tippmixprón tehát: **sok kis tét, nem kevés nagy** — az EV-t nem rontja, a
+lenullázás esélyét viszont 66%-ról 12%-ra viszi. Egy EV-t maximalizáló kalkulátor
+ezt magától elrontaná; a tétméretet külön szabályként kell kezelni.
+
+### Vegason a kérdés nem a tétméret, hanem a körök száma
+
+**Ezt a szakaszt a 2026-09-17-én beküldött szabályzat kényszerítette ki.** A
+forgatásra **240 óra (10 nap)** van, nem 3,5 hónap — a `vegas_real.js` fejléce a
+promóció *igénylési* ablakát olvasta határidőnek. Script: `vegas_rollover.js`.
+
+A forgatás kiértékeléssel halad, és a keret körbeforog: 100 000 Ft-ból nem lehet
+500 000-et megjátszani egyszerre. Bármennyi szelvényt kirakhatsz egy körben, de a
+következő kör csak azután indul, hogy az előző kiértékelődött.
+
+| kör | megjátszott | összes forgalom | keret utána |
+|---|---|---|---|
+| 1 | 100 000 | 100 000 | 94 720 |
+| 2 | 94 720 | 194 720 | 89 719 |
+| 3 | 89 719 | 284 439 | 84 982 |
+| 4 | 84 982 | 369 420 | 80 495 |
+| 5 | 80 495 | 449 915 | 76 244 |
+| 6 | 50 085 | 500 000 | **73 600** |
+
+**Minimum 6 kör**, bármennyi szelvénnyel. Egy kör nem egy nap (délutáni meccsre
+raksz, este kiértékelődik, mehet az estire), tehát napi 1,5–2 kör reális → 15–20
+kör a 10 napban. Ez bőven elég.
+
+Az igazi kérdés, hogy **hány felé oszd a keretet egy körben** (15 kör, 1X2
+átlagmargó):
+
+| szelvény/kör | nettó EV | bukás/lejárat |
+|---|---|---|
+| 1 db | 84 254 | **74,9%** |
+| 2 db | 79 790 | 48,5% |
+| 5 db | 73 626 | 23,1% |
+| **10 db** | **71 962** | **11,1%** |
+| **20 db** | **69 892** | **7,8%** |
+| 50 db | 63 779 | 14,6% |
+
+Kevés nagy szelvény magasabb EV-t ad, de sokkal gyakrabban bukik — egyetlen vesztes
+kör felezi a keretet, és akkor nincs miből tovább forgatni. 50-nél már romlik, mert
+a 200 Ft-os szelvényminimum miatt az utolsó körökben nem osztható szét a maradék.
+
+**A szabály: 10–20 szelvény körönként.** Ez ugyanaz a végeredmény, mint a Tippmixpro
+„sok kis tét", de **más mechanizmus** — nem a lenullázás ellen véd, hanem a körönkénti
+szórást csökkenti, hogy a keret kitartson 6 körön át. Ezt a különbséget érdemes
+fejben tartani: ha a forgatási szorzó vagy a határidő változik, a két szabály
+külön mozdul.
+
+### Két korlát, amit a szabályzat még kiköt
+
+> Azok a kombinációban megtett fogadások, amelyek tartalmaznak sportfogadási bónuszt,
+> **nem számítanak bele a tétrakási követelménybe.**
+
+**Kombinációval nem forgathatsz** — csak szimplával. Ez kizárja azt is, hogy a
+szelvényszámot kötésekkel csökkentsd.
+
+> ...ha a Játékos nem tudja teljesíteni a követelményeket, és a bónusz lejáratának
+> pillanatában van még **nem kiértékelt eseménye**, a tétrakási határidő elteltével a
+> fel nem használt sportfogadásibónusz-egyenleg **törlésre kerül**.
+
+**A szelvénynek ki is kell értékelődnie** a 240 órán belül, nem elég megtenni. Az
+utolsó nap ezért gyakorlatilag nem használható, és a ki nem forgatott bónusz elvész.
 
 ### Amit ez nem old meg
 
@@ -172,16 +234,27 @@ A felhasználó beküldte a Részvételi szabályzatot. Ezek már nem becsült, 
 | maximum | **100 000 Ft** (100 000 Ft feletti befizetésnél is) |
 | oddskövetelmény | szelvényenként **min. 1,5** |
 | tétrakási követelmény | a bónuszösszeg **5-szöröse** (100k bónusz → 500k forgatás) |
-| időtartam | 2026.08.03 – **2026.12.31** |
+| **forgatási határidő** | **240 óra (10 nap) az igényléstől** |
+| igénylési ablak | 2026.08.03 – 2026.12.31 (mikor kérhető a bónusz) |
 
 Két eltérés a korábbi becsléshez képest — az egyik nem számít, a másik igen:
 
 - **A forgatási szorzó (5×) és a min odds (1,5) eltalálva** — a 74,2%-os becslés
   helyes volt. A pontosított szimuláció (`vegas_real.js`) **72,5%**-ot ad.
-- **Az időkorlát nem 7 nap, hanem ~3,5 hónap.** Ez sokkal lazább, mint a
-  Tippmixprónál látott 7 nap. Gyakorlatilag nem szorít: 500 000 Ft forgalom
-  4,5 hónap alatt kényelmesen kirakható apró tétekben. **Ez teszi egyáltalán
-  reálissá a „sok kis tét" stratégiát** — 7 nap alatt nem férne bele.
+- **A határidő 240 óra, nem 3,5 hónap.** ⚠️ Ezt a dokumentum korábbi változata
+  elrontotta: a 2026.08.03–12.31 ablakot olvasta forgatási határidőnek, holott az
+  csak azt mondja meg, **mikor igényelhető** a bónusz. A szabályzat szó szerint:
+  *„...amelyet a sportfogadási bónusz igényléstől számított 240 órán belül szükséges
+  teljesíteni."*
+
+  **Ez megbuktatta az eredeti tétméret-tanácsot.** 500 000 Ft forgalom 2 000 Ft-os
+  tétekkel 250 fogadás — 10 nap alatt napi 25 külön meccs, kiértékeléssel együtt. A
+  `vegas_real.js`, `vegas_boost.js` és `vegas_bonus_final.js` mind ezzel a fix téttel
+  számol, ezért mindhárom fejléce figyelmeztetést kapott. A helyes modell körökben
+  számol, nem fogadásokban: `vegas_rollover.js`.
+
+  Ez ugyanaz a hibatípus, ami ellen a `README.md` figyelmeztet: egy félreolvasott
+  mezőből 3,5 hónap lett ott, ahol 10 nap van.
 
 ### Az odds megválasztása nem számít. A piac megválasztása igen.
 
@@ -398,16 +471,46 @@ Ez pontosan az, amit egy figyelő script tud: minden meccsre kiszámolja a
 `sum(1/odds)`-ot, és megmondja, melyiken érdemes a forgatást letolni. **Nem
 jóslás, csak számolás** — a margó a fogadás pillanatában ismert.
 
+**Ez a script megvan: `vegas_pick.js`.** Kézzel beküldött piacokat rangsorol margó
+szerint, és kiírja, hogy az adott margónál mennyi az 500 000 Ft forgalom várható
+vesztesége. A 8 EL meccsen futtatva reprodukálja a fenti mérést (1X2 átlag 5,28%,
+O/U 6,63%, legjobb meccs 2,98%).
+
+Három guard van benne, mindhárom egy korábbi hibából:
+
+1. **Kettős esély elutasítva** — a `sum(1/odds)-1` csak egymást kizáró kimenetekre
+   áll; az 1X/12/X2 átfed, és a képlet 117%-os „margót" adott a `pyramid_check.js`-ben.
+2. **Hiányos piac elutasítva** — részleges kimenet-készlet margója értelmetlen,
+   ugyanaz a logika, mint a Slate Builder `devig()`-jében.
+3. **Időbélyeg kötelező** — a 2026-09-13-as mérésnél 85-ből 60 ár mozdult átlag
+   1,34%-ot öt óra alatt. Kevert időpontú árakból a rangsor félrevezet.
+
+Vegas-scrapert **nem** építünk: az API zárva (obfuszkált `validateToken`), és a saját
+fiók automatizált használata szegmentálási kockázat. A `bet_slate` sem használható
+proxyként — az a **Tippmixpro** árait tárolja, és nincs mérve, hogy a két könyv margói
+együtt mozognának.
+
 ### A végső kép
 
 | | Tippmixpro | Vegas |
 |---|---|---|
 | bónusz névérték | 5 000 Ft | 100 000 Ft |
-| tényleges érték | ~3 900 Ft | **66 900 – 85 100 Ft** |
+| **saját tőke, amit be kell tenni** | 5 000 Ft | **100 000 Ft** |
+| tényleges érték | ~3 900 Ft | **63 300 – 81 600 Ft** |
 | mi dönt | 3-as kötés (fix) | **hol forgatod** (befolyásolható) |
 | boost forgatásra | kizárva | nem tiltott |
+| forgatási határidő | 72 óra | 240 óra |
 
-A Vegas bónusza **17-22-szer** nagyobb tétel, és — a Tippmixpróval ellentétben —
+**A „tényleges érték" sor nettó nyereség**, a saját tőkén felül. A Vegas-számok a
+körök-modellből jönnek (`vegas_rollover.js`, 20 szelvény/kör, 15 kör) — alacsonyabbak,
+mint a korábbi 66 900 – 85 100, mert az a nem teljesíthető 2 000 Ft-os fix téttel
+számolt.
+
+A saját tőke **nincs zárolva**: a szabályzat csak a bónuszegyenleg törléséről
+rendelkezik, a betétről nem. Bent hagyni sem érdemes — mérve, hogy a párnaként bent
+tartott saját pénz EV-ben ±0.
+
+A Vegas bónusza **16-21-szer** nagyobb tétel, és — a Tippmixpróval ellentétben —
 a kimenetel érdemben befolyásolható. **Az automatizálás itt térül meg, sehol
 máshol.**
 
@@ -416,3 +519,6 @@ máshol.**
 Az egész irány azon áll vagy bukik, hogy a Vegas **nem szegmentálja-e el** a
 felhasználót a promóktól. Erre a repóból nem lehet válaszolni, csak a saját fiókból.
 A kérdések a session összefoglalójában vannak.
+
+*(A betét sorsára vonatkozó korábbi nyitott kérdés lezárva: a szabályzat szerint
+a saját befizetés nincs zárolva, csak a ki nem forgatott bónuszegyenleg vész el.)*

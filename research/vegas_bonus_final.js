@@ -1,4 +1,11 @@
 // A Vegas bonusz ujraszamolva a MERT margoval (nem becsulttel).
+//
+// RESZBEN MEGHALADOTT (2026-09-17): a MARGO-szamok ervenyesek es merteken allnak,
+// a 2000 Ft-os FIX TET viszont nem teljesitheto. A bekuldott szabalyzat szerint a
+// forgatasra 240 ora (10 nap) van, nem 3.5 honap — 2000 Ft-tal az 250 fogadas.
+// A helyes modell korokben szamol (a keret korbeforog, min. 6 kor kell): lasd
+// vegas_rollover.js. A piacvalasztas erteke ott is ~18.000 Ft, tehat az alabbi
+// kovetkeztetes all, csak a szintek tolodnak lejjebb.
 function sim(bonus, rollover, odds, margin, trials, stake) {
   const outs=[];
   for(let t=0;t<trials;t++){

@@ -1,8 +1,15 @@
+// !!! MEGHALADOTT (2026-09-17) — a HATARIDO alabb TEVES, lasd vegas_rollover.js.
+// A 2026.08.03-12.31 a promocio ELERHETOSEGI ablaka (mikor igenyelheto a bonusz),
+// NEM a forgatasi hatarido. A bekuldott szabalyzat szerint a forgatasra "a bonusz
+// igenylestol szamitott 240 oran belul" van mod — azaz 10 nap. Az odds-sweep szamai
+// (a tablazat lentebb) ervenyesek maradnak, a 2000 Ft-os fix tet viszont nem: 10 nap
+// alatt az 250 fogadast jelentene. A helyes modell korokben szamol, nem fogadasokban.
+//
 // A VALODI vegas.hu udvozlobonusz feltetelei (kepernyokep, 2026-09-17):
 //   bonusz: 100% az elso befizetesre, max 100 000 Ft
 //   forgatas: a bonuszosszeg 5-szorose
 //   ODDSKOVETELMENY: szelvenyenkent min 1.5  <-- ez a kulcs
-//   idotartam: 2026.08.03 - 2026.12.31 (kb 3.5 honap, NEM 7 nap)
+//   idotartam: 2026.08.03 - 2026.12.31  <-- az IGENYLESI ablak, nem a forgatasi!
 //
 // A korabbi becsles 5x/1.50-et hasznalt -> 74.5%. Az volt a helyes szorzo.
 // Amit viszont NEM vettem figyelembe: a min odds 1.5 az also korlat, nem kotelezo ar.

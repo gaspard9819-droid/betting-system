@@ -1,4 +1,10 @@
 // Erzekenyseg-vizsgalat: szamit-e a tetmeret? Es mi a szorasa?
+//
+// FIGYELEM: ez TIPPMIXPRO-feltetelekkel szamol (10.000 Ft bonusz, 3x forgatas,
+// min odds 2.00) — lasd a konstansokat lentebb. A belole levont "sok kis tet"
+// tanacs VEGASRA NEM VIHETO AT: ott 100.000 Ft / 5x / min 1.50 a felteteltel, es
+// a szuk keresztmetszet a 240 oras hatarido miatt a KOROK szama, nem a teteke.
+// Vegasra a vegas_rollover.js a mervado.
 function sim(bonus, rollover, minOdds, margin, trials, betFrac) {
   const outs = [];
   for (let t = 0; t < trials; t++) {
