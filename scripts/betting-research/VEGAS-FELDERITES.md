@@ -327,6 +327,90 @@ egy 5 000 Ft-os bónusznál a 74% és a 78% közti különbség ~200 Ft — nem 
 rendszert építeni rá. A határidő figyelése és a 3 láb kiválasztása viszont
 kényelmi kérdés.
 
+## A Vegas margója — MÉRVE (2026-09-17)
+
+A felhasználó beküldte a teljes 1X2 és O/U piacokat 8 EL meccsre. **Ez az első
+referenciamentes mérés** — a margó (`sum(1/odds) - 1`) önmagában kijön, nem kell
+hozzá összehasonlítás. Script: `vegas_margin.js`.
+
+| piac | átlag margó | medián |
+|---|---|---|
+| 1X2 | **5,28%** | 6,17% |
+| O/U 2,5 / 3,5 | **6,63%** | 6,69% |
+
+Összevetés: Tippmixpro rendes 1X2 **4,3–6,5%**, Szuper odds **2,0–2,4%**,
+Pinnacle ~3%.
+
+**A Vegas 1X2 margója (5,28%) a Tippmixpro rendes sávjában van** — nem kiugróan
+rossz könyv. Az O/U viszont egységesen ~6,6%, ami a rosszabb vége.
+
+### Ez cáfolja a korábbi „a Vegas rosszul áraz" következtetést
+
+Előző körben egyetlen szelvényből (6,50 vs 8,00) arra jutottam, hogy a Vegas
+alapára ~19%-kal rosszabb. **A teljes piacok ezt nem támasztják alá.** A Salzburg
+1X2 lába a Vegasnál 2,16, és azon a meccsen a margó mindössze **2,98%** — a
+legalacsonyabb a mintában.
+
+Tehát a 6,50-es kombinált alapár **nem magas 1X2-margóból jött**, hanem a három
+láb *együttes* árazása volt konzervatív. A Bet Builder korrelációkezelése a
+különbség, nem az alappiac margója. **Az egymintás következtetés téves volt** —
+pontosan az a hiba, ami ellen a `README.md` „Ha új ötletet tesztelnél" szakasza
+figyelmeztet.
+
+### Az „Odds+" jelölés
+
+A képen két meccs visel `Odds+` címkét. Azoknál a margó valóban alacsonyabb:
+
+| | 1X2 margó |
+|---|---|
+| Odds+ meccsek (2 db) | **3,95%** |
+| sima meccsek (6 db) | 5,72% |
+
+1,77 százalékpont különbség. **De a minta nem tiszta:** a legalacsonyabb margójú
+meccs (Levszki–Salzburg, 2,98%) *nincs* megjelölve. 8 meccs kevés ahhoz, hogy az
+`Odds+` címkét megbízható szűrőnek tekintsük — érdemes újramérni egy nagyobb
+meccsnapon (`vegas_oddsplus.js`).
+
+### A bónusz újraszámolva a mért margókkal
+
+`vegas_bonus_final.js` — 100 000 Ft, 5× forgatás, odds 1,5, 2 000 Ft-os tétek:
+
+| hol forgatod | EV | % névérték | veszteség az 500k-n |
+|---|---|---|---|
+| O/U piacon (6,63%) | 66 853 | 66,9% | 33 150 Ft |
+| 1X2 átlagon (5,28%) | 73 662 | 73,7% | 26 400 Ft |
+| Odds+ meccseken (3,95%) | 80 291 | 80,3% | 19 750 Ft |
+| a legjobb meccsen (2,98%) | **85 116** | **85,1%** | 14 900 Ft |
+
+**A piacválasztás értéke 18 391 Ft** ugyanazon a bónuszon. Ez valamivel kisebb,
+mint a korábbi 22 500 Ft-os becslés, de nagyságrendben ugyanaz — **és most már
+mérésen áll, nem feltevésen.**
+
+Két konkrét szabály jön ki belőle:
+
+1. **Ne O/U-n forgass.** Egységesen ~6,6%, ez a legrosszabb választás: 6 800 Ft-ba
+   kerül az 1X2 átlagához képest.
+2. **1X2-n forgass, és a szűk margójú meccseket válogasd.** A 2,98% és a 6,54%
+   közti szórás a mintán belül is jelentős — meccsválogatással ~11 000 Ft nyerhető
+   az 1X2 átlagához képest.
+
+Ez pontosan az, amit egy figyelő script tud: minden meccsre kiszámolja a
+`sum(1/odds)`-ot, és megmondja, melyiken érdemes a forgatást letolni. **Nem
+jóslás, csak számolás** — a margó a fogadás pillanatában ismert.
+
+### A végső kép
+
+| | Tippmixpro | Vegas |
+|---|---|---|
+| bónusz névérték | 5 000 Ft | 100 000 Ft |
+| tényleges érték | ~3 900 Ft | **66 900 – 85 100 Ft** |
+| mi dönt | 3-as kötés (fix) | **hol forgatod** (befolyásolható) |
+| boost forgatásra | kizárva | nem tiltott |
+
+A Vegas bónusza **17-22-szer** nagyobb tétel, és — a Tippmixpróval ellentétben —
+a kimenetel érdemben befolyásolható. **Az automatizálás itt térül meg, sehol
+máshol.**
+
 ## Nyitott kérdés — a felhasználónak szól
 
 Az egész irány azon áll vagy bukik, hogy a Vegas **nem szegmentálja-e el** a
