@@ -5,8 +5,8 @@
 // valaszt. A message-et karakterre osszeveti a git HEAD-beli verzioval.
 const fs = require('fs');
 
-const WF = 'C:/Users/AMD/Desktop/n8n builder/workflows/Slip Builder.json';
-const SNAP = 'C:/Users/AMD/Desktop/n8n builder/scripts/betting-research/snapshots/bet_slate_2026-09-08T16-10Z.json';
+const WF = 'C:/Users/AMD/Desktop/betting-system/workflows/Slip Builder.json';
+const SNAP = 'C:/Users/AMD/Desktop/betting-system/research/snapshots/bet_slate_2026-09-08T16-10Z.json';
 
 const wf = JSON.parse(fs.readFileSync(WF, 'utf8'));
 const code = wf.nodes.find(n => n.name === 'Build Response').parameters.jsCode;
@@ -122,7 +122,7 @@ const { execSync } = require('child_process');
 let origCode = null;
 try {
   const orig = execSync('git show HEAD:"workflows/Slip Builder.json"',
-    { cwd: 'C:/Users/AMD/Desktop/n8n builder', encoding: 'utf8', maxBuffer: 40e6 });
+    { cwd: 'C:/Users/AMD/Desktop/betting-system', encoding: 'utf8', maxBuffer: 40e6 });
   origCode = JSON.parse(orig).nodes.find(n => n.name === 'Build Response').parameters.jsCode;
 } catch (e) {
   console.log('  KIHAGYVA: nem tudom kiolvasni a HEAD-et (' + e.message.slice(0, 60) + ')');

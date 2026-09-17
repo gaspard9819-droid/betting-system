@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+*.log
+Thumbs.db
+.DS_Store
+
+# Letoltott football-data.co.uk CSV-k — reprodukalhatok a
+# research/README.md "Getting the data" parancsaval.
+research/data/*
+# ...de a kezzel gyujtott Tippmixpro arak NEM reprodukalhatok: azok maradnak.
+# FIGYELEM: a fenti minta `*`-gal vegzodik. Egy kizart MAPPA tartalmat a git
+# nem engedi vissza !-lel - csak ha maga a mappa nincs kizarva. Ezert /* es
+# nem /.
+!research/data/tippmix/
+# A tippmix_feed.js NYERS kimenete viszont ujra lekerheto (`node tippmix_feed.js`),
+# es egy adott pillanat arait tartalmazza, ami onmagaban nem meres. A belole
+# keszult slate_pairs_* VISZONT meres - az marad, mint a kezi gyujtes.
+research/data/tippmix/feed_*.json

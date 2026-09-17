@@ -147,7 +147,7 @@ warnings live at the end and must not be the part that gets cut.
 ## The team-name table is shared, not copied
 
 `Settle Legs` reuses the `ALIAS` table and `norm()` from `Generate Legs` **verbatim**, via
-`scripts/betting-research/teams.js`.
+`research/teams.js`.
 
 This was learned the expensive way in the same session. The first version hand-copied the
 table and got **67 of 122 entries**. The gap included `'espanyol': 'Espanol'` —
@@ -238,7 +238,7 @@ correctly *fails* rather than silently passing. 81 checks.
 
 **Rule: mock an HTTP response from a real execution's output, never from the field name
 you expect.** Same family as the `curl -sf` traps in
-[the research README](../../scripts/betting-research/README.md) — a request that succeeds
+[the research README](../../research/README.md) — a request that succeeds
 while delivering nothing usable.
 
 ## Verified
@@ -255,7 +255,7 @@ the `data` vs `body` section below. What was verified before either run:
 
 - **`settle_test.js`: 79 checks pass.** All markets and their complements, the four
   statuses, team-name matching, accumulator logic, and the summary. Run it from
-  `scripts/betting-research/`.
+  `research/`.
 - **Real-data proof, 145 legs from the 2026-09-08 slate snapshot against the downloaded
   CSVs: 145 settled, 0 unresolvable.** The arithmetic that makes this conclusive:
   `h2h` home+draw+away won = 8+9+12 = 29 = the match count (exactly one outcome per

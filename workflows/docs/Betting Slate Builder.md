@@ -74,7 +74,7 @@ bonus was not** and has been removed — KOZEPES outperforms MAGAS in two of thr
 
 `buildSlip` ranked candidates by `model_prob` and scored slips by the product of model
 probabilities. Both now use `market_prob`, the de-vigged market probability the slate
-already stores. `scripts/betting-research/market_ref.js` measured why, over 25k legs,
+already stores. `research/market_ref.js` measured why, over 25k legs,
 **within** each odds band (so the comparison is not just favourites vs longshots):
 
 | tippmix band | top quartile by `model_prob` | bottom quartile | top by `market_prob` | bottom |
@@ -505,7 +505,7 @@ flatness, better fit than *both* earlier curves on the directly-measured pairs, 
 (23 checks — price movement bounds, leg-count optimum, ceiling justification, and every
 slip invariant under the new prices).
 
-**Raw data kept** at `scripts/betting-research/data/tippmix/`: the collected prices, the
+**Raw data kept** at `research/data/tippmix/`: the collected prices, the
 140 `fixtures.csv` matches from the withdrawn attempt, and `slate_pairs_2026-09-13.json` —
 the 45 direct pairs the shipped curve is fitted on. `tippmix_direct.js` re-runs that fit;
 it is the one to extend with more prices.
@@ -611,12 +611,12 @@ guard added in `57a0b08` is what made the difference.
   `leg_id` overlap with the pre-run snapshot. The 145 → 60 drop is expected — the old
   slate covered 09-05 fixtures that have since been played.
 - Pre-run snapshot of all 145 rows kept at
-  `scripts/betting-research/snapshots/bet_slate_2026-09-08T16-10Z.json`. To roll back,
+  `research/snapshots/bet_slate_2026-09-08T16-10Z.json`. To roll back,
   re-insert those rows without `id`/`createdAt`/`updatedAt`.
 
 The same `curl -s` trap bit the local research scripts on the same day: without `-f`,
 curl writes the 489-byte HTML error page as a `.csv` and exits 0, so the failure only
-surfaces at the parser. See `scripts/betting-research/README.md`.
+surfaces at the parser. See `research/README.md`.
 
 ## Results tracking lives in a third workflow (added 2026-09-12)
 
@@ -639,7 +639,7 @@ Two things from that build that apply back to *this* workflow:
   since**. It also means `curl -sf` in local scripts writes a 0-byte file and exits 0;
   use `curl -sfL`.
 - **The `ALIAS` table in `Generate Legs` is now shared**, extracted verbatim to
-  `scripts/betting-research/teams.js`. A hand-copied version of it in the settlement code
+  `research/teams.js`. A hand-copied version of it in the settlement code
   came out at 67 of 122 entries and silently dropped 5 Espanyol legs
   (football-data spells it `Espanol`). `settle_test.js` now fails if the two copies
   diverge, so **a new team has to be added in both places**.

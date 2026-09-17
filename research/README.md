@@ -632,7 +632,7 @@ come from `/sports#initialDump` RPC calls against two topic shapes — a match l
 
 ### How to actually use it: `node collect.js`
 
-One command, run from `scripts/betting-research/` after the 08:00 slate. It reads the
+One command, run from `research/` after the 08:00 slate. It reads the
 fresh slate out of n8n, collects real prices, pairs them, and scores the shipped curve:
 
 ```bash

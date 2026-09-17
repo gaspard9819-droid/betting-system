@@ -6,7 +6,7 @@ Ez **felderítés, nem épített rendszer** — a döntés még nyitott, lásd a
 ## A platform
 
 A vegas.hu sportfogadása **Altenar**-on fut (nem saját fejlesztés, nem az a WAMP
-WebSocket, amit a Tippmixpro használ). Ez a `scripts/betting-research/tippmix_feed.js`
+WebSocket, amit a Tippmixpro használ). Ez a `research/tippmix_feed.js`
 mintájára **nem újrahasznosítható** — teljesen más adatforrás.
 
 Amit a publikus fájlokból ki lehetett olvasni (`https://vegas.hu/cms/settings.json`):

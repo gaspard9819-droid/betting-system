@@ -5,8 +5,8 @@
 // teszteli, nem egy masolatot.
 const fs = require('fs');
 
-const WFDIR = 'C:/Users/AMD/Desktop/n8n builder/workflows/';
-const SRC = 'C:/Users/AMD/Desktop/n8n builder/scripts/betting-research/';
+const WFDIR = 'C:/Users/AMD/Desktop/betting-system/workflows/';
+const SRC = 'C:/Users/AMD/Desktop/betting-system/research/';
 const wf = JSON.parse(fs.readFileSync(WFDIR + 'Bet Settlement.json', 'utf8'));
 const codeOf = (name) => wf.nodes.find(n => n.name === name).parameters.jsCode;
 
