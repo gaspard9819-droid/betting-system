@@ -40,7 +40,7 @@ A margó nem mindent lát. Hat kategória esik ki, még ha olcsónak is látszik
 
 | kizárva | miért |
 |---|---|
-| kombinált piacok (`1X2 + Gólszám`) | két esemény szorzata egy lábban; a margó halmozott, és a szelvényen belül rejtetten korrelál |
+| kombinált piacok (`1X2 + Gólszám`) | **20,73% margó** a két külön piac 11,26%-ával szemben (43 meccsen mérve) — lásd lent |
 | játékos-függő (`Ki szerzi a gólt?`) | a kezdőcsapattól függ, amit meccs előtt nem tudunk |
 | időzítés (`1. gól 70 perc előtt`) | nagyobb szórás, a mért margó-referencia nem terjed ki rá |
 | félidős piacok | külön eseményre szól, rövidebb mintával és magasabb margóval |
@@ -74,6 +74,36 @@ Mérve 2026-09-19, ugyanarra a célra, Tippmixpro-árakon:
 Kb. **2,5x alatt egy láb a legolcsóbb**, fölötte több. A kereső mindegyiket
 végigpróbálja, és a legolcsóbbat adja; döntetlennél a kevesebb lábat, mert
 kevesebb dolog tud rosszul elsülni (lemondott meccs, felfüggesztett piac).
+
+### Egy meccsen két piac — a könyv mindkét irányban nyer
+
+Gyakori ötlet: „hazai győzelem + mindkét csapat szerez gólt" ugyanarra a meccsre.
+A Tippmixpro ezt kész piacként kínálja (`1X2 + Mindkét csapat szerez gólt`).
+
+**Mérve 2026-09-19, 43 meccsen:**
+
+| | margó |
+|---|---|
+| 1X2 | 4,90% |
+| Mindkét csapat szerez gólt | 6,36% |
+| a két külön piac együtt | 11,26% |
+| **kombinált piac (6 kimenetel)** | **20,73%** |
+
+Az ár első ránézésre jónak tűnik: a kombinált piac 12 esetből 11-ben **többet
+fizet**, mint a két láb odds-szorzata (átlag +8,5%, maximum +13,9%). Ez azért van,
+mert a két esemény **negatívan korrelál** — ha a hazai nyer, gyakran 1-0 vagy 2-0
+lesz, tehát nincs BTTS. Az együttes kimenetel ritkább, mint a szorzat.
+
+De a felár nem ajándék: a könyv beárazta a korrelációt, aztán rátett még egy adag
+margót. **20,73% majdnem duplája a két külön lábnak.**
+
+A `research/README.md:499` fordított esete ugyanezt mutatja más irányból:
+**pozitívan** korreláló lábaknál a szorzat 9,16 lett volna, a Tippmixpro 5,25-öt
+írt ki (−21,9% nettó). Negatív korrelációnál felárat ad, pozitívnál levon —
+mindkét esetben a könyv nyer.
+
+Ezért van két külön szabály: a kombinált piacok kizárva (`COMBINED` minta a
+`margin.js`-ben), és egy meccsből egy láb.
 
 ### Egy meccsből egy láb — és semmi több
 
