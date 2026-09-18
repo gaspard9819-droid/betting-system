@@ -22,15 +22,32 @@
 // ez ad. A devig_check.js merte (7228 meccs): a hatvany-modszer jobb a
 // Pinnacle zaroaron (0.96302 -> 0.96245), de a torzitas iranya ott is ugyanaz.
 // Egy konyvbol nincs jobb - ezert ez a szam BECSLES, nem meres.
+// Az implikalt osszeg CSAK akkor margo, ha a kimenetelek teljes, kizaro
+// rendszert alkotnak. Atfedo kimeneteleknel ("1+", "2+", "3+" vagy "0-2",
+// "0-3", "1-2") az osszeg ertelmetlen - merve 2026-09-19 egy csapat-golszam
+// piacon: 6.49 (allitolag 549% margo), egy masikon 1.0048 (0.48%).
+//
+// A 0.48% a veszelyesebb: ugy nez ki, mint egy kivetelesen olcso piac, es a
+// rangsor elore hozza. Egy szelveny epult ra, mielott eszrevettem.
+//
+// A plafon 25%: a legdragabb MERT piac a kombinalt (20.73%, 43 meccsen), a
+// legdragabb rendes a szoglet-hendikep (~9.5%). Ami e folott van, az nem
+// draga piac, hanem rossz szamitas.
+const MAX_PLAUSIBLE_MARGIN = 25;
+
 function devig(picks) {
   if (!picks || picks.length < 2) return null;
   const ipSum = picks.reduce((s, p) => s + 1 / p.odds, 0);
   // ipSum <= 1: ertelmetlen vagy mar de-viggelt piac. Ilyenkor nincs mit
   // levonni, es a "margo" negativ lenne - a piac kimarad a rangsorbol.
   if (!(ipSum > 1)) return null;
+  const marginPct = (ipSum - 1) * 100;
+  // Atfedo kimenetelek: a szam nem margo. Inkabb hianyzik a piac, mint hogy
+  // hamis koltseggel keruljon a rangsorba.
+  if (marginPct > MAX_PLAUSIBLE_MARGIN) return null;
   return {
     probs: picks.map(p => (1 / p.odds) / ipSum),
-    marginPct: (ipSum - 1) * 100,
+    marginPct,
   };
 }
 
@@ -152,8 +169,32 @@ function isExtremeLine(name) {
   return line < 1.5 || line > 4.5;
 }
 
+// 7. ATFEDO KIMENETELU PIACOK. A "Csapat golszam" valtozatai ("1+", "2+",
+//    "0-2", "1-3") nem zarjak ki egymast, hanem egymasba agyazodnak. A
+//    de-vig ezeken ertelmetlen szamot ad, es a MARKET_REF sem fedi oket.
+const OVERLAPPING = /gólszám\s*$/i;
+
+// A NEV nem eleg: a "Gólszám" alatt ket kulonbozo piac fut - a ketkimenetelu
+// over/under ("Több, mint 2.5" / "Kevesebb, mint 2.5") es a SAVOS ("2-5",
+// "0-3"), ami 12 atfedo kimenetelt ad. Ezert a kimenetelek ALAKJA dont.
+//
+// Atfedesre utal:
+//   - "N+" alak (1+, 2+, 3+)  -> egymasba agyazott
+//   - "N-M" sav (0-2, 1-3, 2-5) -> atfedo savok
+function hasOverlappingOutcomes(picks) {
+  if (!picks || picks.length < 2) return false;
+  const labels = picks.map(p => String(p.label || '').trim());
+  const plusForm = labels.filter(l => /\d\s*\+\s*$/.test(l)).length;
+  const rangeForm = labels.filter(l => /\d+\s*[-–]\s*\d+\s*$/.test(l)).length;
+  // Ket vagy tobb ilyen kimenetel mar atfedest jelent. Egy onmagaban lehet
+  // veletlen (pl. csapatnev szamjeggyel).
+  return plusForm >= 2 || rangeForm >= 2;
+}
+
 function isUsableMarket(name) {
   const n = String(name || '');
+  // "Golszam 2.5" rendben (ket kizaro kimenetel); "Alaves golszam" nem.
+  if (OVERLAPPING.test(n) && !/^Gólszám/i.test(n)) return false;
   if (COMBINED.test(n)) return false;
   if (PLAYER_DEPENDENT.test(n)) return false;
   if (TIMING.test(n)) return false;
@@ -167,6 +208,14 @@ function legsFrom(match, market) {
   // (1.84% merve), es a nev nem esik egyik kizaro mintaba sem - de a
   // biztonsag kedveert kifejezetten kimondjuk.
   if (!market.isBoost && !isUsableMarket(market.name)) return [];
+
+  // Atfedo kimenetelek: se de-vig, se referencia nem ervenyes.
+  //
+  // A de-vig ertelmetlen szamot ad (merve: 1.0048 es 6.49 ugyanazon a
+  // meccsen), a referencia pedig mas piacra vonatkozik - a MARKET_REF 6.76%-a
+  // a sima over/under golszamra all, nem a savos valtozatra. Egy savos piac
+  // igy 0.61% lab-koltseget kapott, ami a rangsor elejere hozta.
+  if (hasOverlappingOutcomes(market.picks)) return [];
 
   const dv = devig(market.picks);
   const ref = referenceMargin(market.name);
@@ -237,4 +286,4 @@ function slipValue(legs) {
   };
 }
 
-module.exports = { devig, bandCost, referenceMargin, marketFamily, isUsableMarket, legsFrom, allLegs, slipValue, BAND_COST, MARKET_REF };
+module.exports = { devig, bandCost, referenceMargin, marketFamily, isUsableMarket, hasOverlappingOutcomes, legsFrom, allLegs, slipValue, BAND_COST, MARKET_REF };

@@ -46,6 +46,7 @@ A margó nem mindent lát. Hat kategória esik ki, még ha olcsónak is látszik
 | félidős piacok | külön eseményre szól, rövidebb mintával és magasabb margóval |
 | negyed-vonal (`Ázsiai hendikep 0.25`) | a tét fele visszajárhat; kötésben az a láb 1,0-s oddsszal számít tovább, az eredő lezuhan — ezt sem a kiírt összodds, sem a legCost nem mutatja |
 | szélső gólszám-vonal (`Gólszám 6`) | ott alig van forgalom; a szűk margó nem jó árat jelent, hanem azt, hogy a könyv nem foglalkozott vele |
+| **átfedő kimenetelű** (`1+`, `2+`, `0-3`, `2-5`) | a de-vig csak teljes, kizáró rendszeren értelmes — lásd lent |
 
 Mérve 2026-09-19 a 43 meccses kínálaton: **26.500 lábból 8.516 marad**, 1507 piacból 939.
 A megmaradt piacokon belül tiszta margó-sorrend van — ott tényleg mindegy, melyik.
@@ -74,6 +75,31 @@ Mérve 2026-09-19, ugyanarra a célra, Tippmixpro-árakon:
 Kb. **2,5x alatt egy láb a legolcsóbb**, fölötte több. A kereső mindegyiket
 végigpróbálja, és a legolcsóbbat adja; döntetlennél a kevesebb lábat, mert
 kevesebb dolog tud rosszul elsülni (lemondott meccs, felfüggesztett piac).
+
+### Átfedő kimenetelek — ahol a margószámítás érvénytelen
+
+A de-vig feltételezi, hogy a kimenetelek **teljes, kizáró rendszert** alkotnak
+(összegük 1). A Tippmixpro kínál olyan piacokat, ahol ez nem áll:
+
+- `Ath. Bilbao: 1+`, `2+`, `3+`, `4+` — egymásba ágyazott halmazok
+- `Gólszám: 0-2`, `0-3`, `1-2`, `2-5` — átfedő sávok
+
+Ezeken az implikált összeg nem margót mér. **Mérve ugyanazon a meccsen:** az egyik
+ilyen piac 6,49-es összeget adott („549% margó"), egy másik **1,0048-at (0,48%)**.
+
+A 0,48% a veszélyesebb: úgy néz ki, mint egy kivételesen olcsó piac, és a rangsor
+eléjére hozza. Egy szelvény épült rá, mielőtt észrevettem.
+
+Két védelem:
+
+1. **Alak-alapú felismerés** (`hasOverlappingOutcomes`): ha két vagy több kimenetel
+   `N+` vagy `N-M` alakú, a piac kimarad. A név nem lenne elég — a `Gólszám` alatt
+   két különböző piac fut, a kétkimenetelű over/under és a sávos.
+2. **Margó-plafon** (25%): a legdrágább mért piac a kombinált (20,73%). Ami e fölött
+   van, az nem drága piac, hanem rossz számítás.
+
+A referencia-margó sem segít rajtuk: a `MARKET_REF` 6,76%-a a sima over/under
+gólszámra áll, nem a sávos változatra.
 
 ### Egy meccsen két piac — a könyv mindkét irányban nyer
 
