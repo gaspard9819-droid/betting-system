@@ -17,3 +17,7 @@ research/data/*
 # es egy adott pillanat arait tartalmazza, ami onmagaban nem meres. A belole
 # keszult slate_pairs_* VISZONT meres - az marad, mint a kezi gyujtes.
 research/data/tippmix/feed_*.json
+
+# A Playwright MCP munkamenet-melléktermékei (oldal-snapshotok, konzol-logok).
+# Diagnosztikához hasznosak futás közben, utána nem.
+.playwright-mcp/
