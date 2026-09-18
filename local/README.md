@@ -50,11 +50,20 @@ A margó nem mindent lát. Hat kategória esik ki, még ha olcsónak is látszik
 Mérve 2026-09-19 a 43 meccses kínálaton: **26.500 lábból 8.516 marad**, 1507 piacból 939.
 A megmaradt piacokon belül tiszta margó-sorrend van — ott tényleg mindegy, melyik.
 
-### Piac-diverzitás
+### Egy meccsből egy láb — és semmi több
 
-Egy meccsből egy láb (ez a `slip.js`-ben is megvan), **plusz** piac-család és irány
-szerinti korlát. Három „több mint 1.5 gól" láb három meccsről egyetlen feltevésre épül:
-hogy gólgazdag a forduló. A `jointP` ezt nem mutatja, mert függetlennek veszi a lábakat.
+Ez az egyetlen diverzitás-szabály, és mért indoka van: ugyanazon meccs két lábjánál
+a szorzat 9,16 lett volna, a Tippmixpro **5,25-öt írt ki** (−21,9% nettó) —
+`research/README.md:499`.
+
+Volt egy piac-család szerinti korlát is (max két azonos irányú láb), azzal az
+indokkal, hogy a könyv az over-oldalt szisztematikusan drágábban adja. **Megmérve
+2026-09-19, 148 közel 50/50-es gólszám vonalon: az over oldal a margó 49,8%-át
+viseli** (medián 49,7%). Szimmetrikus — az állítás ezen az adaton nem igaz, ezért
+a szabály kikerült.
+
+Különböző meccsek függetlenek. Három „több mint 1,5 gól" láb három meccsről nem
+egyetlen feltétel — három külön fogadás.
 
 ## Mit mér, és mennyire pontosan
 

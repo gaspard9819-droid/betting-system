@@ -34,18 +34,24 @@ function buildSlip(pool, opts = {}) {
   let cand = pool.filter(l => Number.isFinite(l.odds) && l.odds >= minLegOdds && Number.isFinite(l.legCost));
   if (!cand.length) return { ok: false, reason: 'ures_kinalat' };
 
-  // MEGKOTES, amit a slip.js nem ismer: piac-CSALAD es IRANY szerinti korlat.
+  // NINCS piac-csalad szerinti korlat - es ez meres eredmenye, nem mulasztas.
   //
-  // A slip.js `event_id` szurese kizarja, hogy egy meccsrol ket lab keruljon
-  // a szelvenyre. De ugyanaz a piac KULONBOZO meccseken is felbukkan, es ha
-  // harom lab ugyanaz ("tobb mint 1.5 gol") harom meccsrol, akkor a szelveny
-  // EGYETLEN feltevesre epul: hogy golgazdag a fordulo.
+  // Volt ilyen szabaly (max 2 lab ugyanabbol a piac-csaladbol es iranybol),
+  // azzal az indokkal, hogy harom "tobb mint X gol" lab harom meccsrol
+  // ugyanarra az arazasi torzitasra epul: ha a konyv az over-oldalt
+  // szisztematikusan dragabban adja, az mindharom labon ul.
   //
-  // Ez rejtett korrelacio: a jointP fuggetlennek veszi a labakat, tehat
-  // TULBECSULI a bejovesi eselyt. A vonalszam nem szamit - a "2.5 folott" es
-  // a "3.5 folott" ugyanaz az irany -, ezert a csaladra + iranyra szamolunk,
-  // nem a pontos piacnevre.
-  const familyCap = Number(opts.maxPerFamily) || 2;
+  // MEGMERVE 2026-09-19, 148 kozel 50/50-es golszam vonalon: az over oldal a
+  // margo 49.8%-at viseli (median 49.7%). Szimmetrikus. A margo a
+  // vonal-savokon is lapos: 5.98% / 5.93% / 5.77% / 6.03%.
+  //
+  // Az "emberek szeretik az overt, a konyv ezt bearazza" allitas elterjedt,
+  // de ezen az adaton nem igaz. Mert indok nelkul nem szukitjuk a poolt.
+  //
+  // AMI MARAD: egy meccsbol egy lab. Az mert - README.md:499: ugyanazon meccs
+  // ket labanal a szorzat 9.16 lett volna, a Tippmixpro 5.25-ot irt ki
+  // (-21.9% netto), mert ott UGYANAZ az esemeny szerepel ketszer.
+
 
   // Rangsor: OLCSOBB LAB ELOBB. A legCost kisebb = jobb.
   cand.forEach(l => { l._q = -l.legCost; });
@@ -75,7 +81,7 @@ function buildSlip(pool, opts = {}) {
     for (let n = nMin; n <= maxLegs; n++) {
       const found = [];
 
-      const dfs = (start, chosen, prod, usedMatches, famCount) => {
+      const dfs = (start, chosen, prod, usedMatches) => {
         if (found.length >= 400) return;
         if (chosen.length === n) {
           if (prod >= lo && prod <= hi) found.push({ legs: [...chosen], prod });
@@ -86,21 +92,17 @@ function buildSlip(pool, opts = {}) {
           if (pool2.length - i < remaining) break;
           const l = pool2[i];
           if (usedMatches.has(l.matchId)) continue;                 // egy meccs = egy lab
-          const fam = (l.marketFamily || l.market) + '|' + (l.side || '');
-          if ((famCount.get(fam) || 0) >= familyCap) continue;       // piac-diverzitas
           const p = prod * l.odds;
           if (p * Math.pow(maxOdds, remaining - 1) < lo) continue;
           if (p > hi) continue;
           usedMatches.add(l.matchId);
-          famCount.set(fam, (famCount.get(fam) || 0) + 1);
           chosen.push(l);
-          dfs(i + 1, chosen, p, usedMatches, famCount);
+          dfs(i + 1, chosen, p, usedMatches);
           chosen.pop();
-          famCount.set(fam, famCount.get(fam) - 1);
           usedMatches.delete(l.matchId);
         }
       };
-      dfs(0, [], 1, new Set(), new Map());
+      dfs(0, [], 1, new Set());
 
       if (found.length) {
         // PONTOZAS: a legolcsobb kombinacio nyer.
