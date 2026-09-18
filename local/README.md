@@ -34,6 +34,22 @@ meccs hiányzott belőle, 50-es és 200-as lapmérettel is. Ezért ad a
 A bajnokság-topik minden meccset lát, és a `match-odds` kód nélkül minden piacot —
 beleértve a `693-3` boostot is.
 
+### Piac-szűrés — nem minden olcsó piac jó
+
+A margó nem mindent lát. Hat kategória esik ki, még ha olcsónak is látszik:
+
+| kizárva | miért |
+|---|---|
+| kombinált piacok (`1X2 + Gólszám`) | két esemény szorzata egy lábban; a margó halmozott, és a szelvényen belül rejtetten korrelál |
+| játékos-függő (`Ki szerzi a gólt?`) | a kezdőcsapattól függ, amit meccs előtt nem tudunk |
+| időzítés (`1. gól 70 perc előtt`) | nagyobb szórás, a mért margó-referencia nem terjed ki rá |
+| félidős piacok | külön eseményre szól, rövidebb mintával és magasabb margóval |
+| negyed-vonal (`Ázsiai hendikep 0.25`) | a tét fele visszajárhat; kötésben az a láb 1,0-s oddsszal számít tovább, az eredő lezuhan — ezt sem a kiírt összodds, sem a legCost nem mutatja |
+| szélső gólszám-vonal (`Gólszám 6`) | ott alig van forgalom; a szűk margó nem jó árat jelent, hanem azt, hogy a könyv nem foglalkozott vele |
+
+Mérve 2026-09-19 a 43 meccses kínálaton: **26.500 lábból 8.516 marad**, 1507 piacból 939.
+A megmaradt piacokon belül tiszta margó-sorrend van — ott tényleg mindegy, melyik.
+
 ### Piac-diverzitás
 
 Egy meccsből egy láb (ez a `slip.js`-ben is megvan), **plusz** piac-család és irány
@@ -47,9 +63,9 @@ A számolt margók egybeesnek a `research/README.md` méréseivel:
 | piac | itt mért | README:368 (25 meccs medián) |
 |---|---|---|
 | 1X2 – Szuper odds | 1,84% | 2,22% |
-| 1X2 | 4,81% | 6,15% |
-| Gólszám | 5,4–6,2% | 6,76% |
-| Mindkét csapat szerez gólt | 6,33% | 7,50% |
+| 1X2 | 4,52% | 6,15% |
+| Gólszám | 5,4–6,0% | 6,76% |
+| Mindkét csapat szerez gólt | 6,34% | 7,50% |
 
 Ugyanaz a nagyságrend és sorrend. Az eltérés napi ingadozás — a README-számok más nap
 más meccseiről származnak.

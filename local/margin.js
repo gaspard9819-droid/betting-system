@@ -90,6 +90,7 @@ function referenceMargin(marketName) {
 // vonatkozik: egy harom kimenetelu 1X2 6.15%-a nem azt jelenti, hogy minden
 // egyes lab 6.15%-ot visz, hanem hogy a konyv ennyit tart meg a piac egeszen.
 // Egy labra eso resz ennek az aranyos hanyada.
+
 // Piac-csalad: a vonalszam nelkuli alak.
 //
 // A "Gólszám 2.5", "Gólszám 2.75", "Gólszám 3" ugyanaz a fogadas mas vonalon.
@@ -105,7 +106,68 @@ function marketFamily(name) {
     .trim();
 }
 
+// ------------------------------------------------------- hasznalhato piacok
+//
+// A margo NEM mindent lat. Van piac, ami olcsonak latszik, de maskepp szamol
+// el, mint amit a szelveny matekja feltetelez - vagy olyan informaciot igenyel,
+// ami meccs elott nincs meg. Ezek kizarasa nem izles: a legCost rajtuk
+// FELREVEZETO, nem csak pontatlan.
+//
+// Merve 2026-09-19 a 43 meccses kinalaton: szures nelkul 26.500 labbol
+// ~19.000 esik ezekbe a kategoriakba.
+
+// 1. KOMBINALT PIACOK ("1X2 + Gólszám", "Kétesély + Mindkét csapat...").
+//    Ket esemeny szorzata egy labban. A margojuk halmozott (a konyv mindket
+//    reszen keres), es a szelvenyen belul rejtetten korrelalnak minden mas
+//    labbal, ami ugyanazt a reszesemenyt hasznalja. A diverzitas-korlat ezt
+//    nem latja, mert mas a csaladnev.
+const COMBINED = /\s\+\s|\svagy\s/;
+
+// 2. JATEKOS-FUGGO PIACOK. A kimenetel a kezdocsapattol fugg, amit meccs
+//    elott nem tudunk. Egy kihagyott kezdo ertelmetlenne teszi az arat.
+// A "Mindkét csapat szerez gólt" NEM jatekos-fuggo - az a BTTS, egy fo piac
+// 6.33% margoval. Ezert a minta a mondat ELEJERE horgonyoz: a jatekos-piacok
+// neve "Szerez gólt?" alakban kezdodik, a BTTS-e nem.
+const PLAYER_DEPENDENT = /^Szerez gólt|Gólpasszt|Ki szerzi|Melyik csapat szerzi|Ki ér el először/i;
+
+// 3. IDOZITES-PIACOK. Nagyobb szoras, es a mert margo-referencia
+//    (README.md:368) nem terjed ki rajuk.
+const TIMING = /perc előtt|megszerzésének ideje|félidő|Félidő/i;
+
+// 4. NEGYED-VONALAS AZSIAI HENDIKEP es golszam (.25 / .75 vegzodes).
+//    Ezeken a tet FELE visszajarhat. Kotesben ez jellemzoen azt jelenti,
+//    hogy az a lab 1.0-s oddsszal szamit tovabb - az eredo lezuhan, amit
+//    sem a kiirt osszodds, sem a legCost nem mutat.
+const QUARTER_LINE = /[-+]?\d*[.,](25|75)\s*$/;
+
+// 5. SZELSO VONALAK. A "Gólszám 6" margoja szuknek latszik, de azon a vonalon
+//    alig van forgalom - a szuk margo ott nem jo arat jelent, hanem azt, hogy
+//    a konyv nem foglalkozott vele. A devig_check.js (7228 meccs) merte, hogy
+//    a de-vigelt margo pont a szelsosegeken torzit a legjobban.
+function isExtremeLine(name) {
+  const m = /(\d+(?:[.,]\d+)?)\s*$/.exec(String(name || ''));
+  if (!m) return false;
+  const line = Number(String(m[1]).replace(',', '.'));
+  if (!/Gólszám|gólszám/.test(name)) return false;
+  return line < 1.5 || line > 4.5;
+}
+
+function isUsableMarket(name) {
+  const n = String(name || '');
+  if (COMBINED.test(n)) return false;
+  if (PLAYER_DEPENDENT.test(n)) return false;
+  if (TIMING.test(n)) return false;
+  if (QUARTER_LINE.test(n)) return false;
+  if (isExtremeLine(n)) return false;
+  return true;
+}
+
 function legsFrom(match, market) {
+  // A boost MINDIG atmegy: az 1X2 - Szuper odds a legszukebb margoju piac
+  // (1.84% merve), es a nev nem esik egyik kizaro mintaba sem - de a
+  // biztonsag kedveert kifejezetten kimondjuk.
+  if (!market.isBoost && !isUsableMarket(market.name)) return [];
+
   const dv = devig(market.picks);
   const ref = referenceMargin(market.name);
 
@@ -175,4 +237,4 @@ function slipValue(legs) {
   };
 }
 
-module.exports = { devig, bandCost, referenceMargin, marketFamily, legsFrom, allLegs, slipValue, BAND_COST, MARKET_REF };
+module.exports = { devig, bandCost, referenceMargin, marketFamily, isUsableMarket, legsFrom, allLegs, slipValue, BAND_COST, MARKET_REF };
