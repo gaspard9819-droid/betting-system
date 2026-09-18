@@ -78,6 +78,30 @@ function buildSlip(pool, opts = {}) {
     const nMin = Math.max(minLegs, Math.ceil(Math.log(T) / Math.log(maxOdds)));
     if (nMin > maxLegs) return { failed: 'cel_tul_magas', nMin, maxLegs, maxOdds };
 
+    // MINDEN labszamot vegigprobalunk, es a LEGOLCSOBB nyer.
+    //
+    // A research/slip.js az ELSO n-nel megall, amin van megoldas ("legkevesebb
+    // lab"). Ott ez helyes volt: a slate BECSULT tippmix-arakat hordozott
+    // (tippmixRatio(), 2.31% atlagos hiba), tehat a koltseget nem lehetett
+    // megbizhatoan osszehasonlitani labszamok kozott - a "kevesebb lab
+    // kevesebb margo" hasznalhato kozelites volt.
+    //
+    // Itt minden ar MERT, tehat a koltseg kozvetlenul szamolhato. Es a
+    // kozelites nem all: a hosszu labak buntetese (README.md:571) gyorsabban
+    // no, mint amennyit egy plusz lab hozzatesz.
+    //
+    // Merve 2026-09-19 a mai kinalaton, ugyanarra a celra:
+    //
+    //   cel     1 lab    2 lab    3 lab
+    //   2.1x    1.60%    2.70%    6.33%    <- a kevesebb lab olcsobb
+    //   3x      3.28%    2.36%    3.03%    <- mar megfordul
+    //   5x      6.03%    3.89%    2.53%
+    //   10x     nincs    9.12%    5.42%
+    //   20x     nincs   12.59%   10.14%
+    //
+    // Az 5x-es peldan a regi logika ket labat adott volna (3.89%), pedig a
+    // harom olcsobb (2.53%).
+    const byN = [];
     for (let n = nMin; n <= maxLegs; n++) {
       const found = [];
 
@@ -126,10 +150,15 @@ function buildSlip(pool, opts = {}) {
         found.sort((a, b) => (b.score - a.score) || (b.boosted - a.boosted));
         const winner = found[0];
         winner.n = n;
-        return winner;
+        byN.push(winner);
       }
     }
-    return null;
+
+    if (!byN.length) return null;
+    // A legolcsobb labszam nyer. Dontetlennel a KEVESEBB lab - kevesebb
+    // dolog tud rosszul elsulni (lemondott meccs, felfuggesztett piac).
+    byN.sort((a, b) => (a.cost - b.cost) || (a.n - b.n));
+    return byN[0];
   };
 
   // Ket menet: eloszor a puha plafonnal, aztan nelkule.

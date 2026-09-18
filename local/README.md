@@ -50,6 +50,31 @@ A margó nem mindent lát. Hat kategória esik ki, még ha olcsónak is látszik
 Mérve 2026-09-19 a 43 meccses kínálaton: **26.500 lábból 8.516 marad**, 1507 piacból 939.
 A megmaradt piacokon belül tiszta margó-sorrend van — ott tényleg mindegy, melyik.
 
+### A legolcsóbb lábszám nyer, nem a legkevesebb
+
+A `research/slip.js` az **első** lábszámnál megáll, amin van megoldás. Ott ez
+helyes volt: a slate becsült Tippmix-árakat hordozott (2,31% átlagos hiba), tehát
+a költséget nem lehetett lábszámok között összehasonlítani — a „kevesebb láb
+kevesebb margó" használható közelítés volt.
+
+Itt minden ár mért, tehát a költség közvetlenül számolható. És a közelítés nem
+áll: a hosszú lábak büntetése (`README.md:571`) gyorsabban nő, mint amennyit egy
+pluszláb margója hozzátesz.
+
+Mérve 2026-09-19, ugyanarra a célra, Tippmixpro-árakon:
+
+| cél | 1 láb | 2 láb | 3 láb |
+|---|---|---|---|
+| 2,1x | **1,60%** | 2,70% | 6,33% |
+| 3x | 3,28% | **2,36%** | 3,03% |
+| 5x | 6,03% | 3,89% | **2,53%** |
+| 10x | nincs | 9,12% | **5,42%** |
+| 20x | nincs | 12,59% | **10,14%** |
+
+Kb. **2,5x alatt egy láb a legolcsóbb**, fölötte több. A kereső mindegyiket
+végigpróbálja, és a legolcsóbbat adja; döntetlennél a kevesebb lábat, mert
+kevesebb dolog tud rosszul elsülni (lemondott meccs, felfüggesztett piac).
+
 ### Egy meccsből egy láb — és semmi több
 
 Ez az egyetlen diverzitás-szabály, és mért indoka van: ugyanazon meccs két lábjánál
