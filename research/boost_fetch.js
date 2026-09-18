@@ -17,7 +17,7 @@
 // FUTTATAS (a betting-research mappabol):
 //   node boost_fetch.js              # lekeres + kiiras, NEM ir a slate-be
 //   node boost_fetch.js --write      # + beirja a bet_slate boost_odds mezojet
-//   node boost_fetch.js --min 3      # csak a 3%-nal nagyobb emeleseket veszi
+//   node boost_fetch.js --min 3      # csak a legalabb 3%-os emeleseket veszi
 //
 // Kornyezet a --write-hoz: N8N_API_URL es N8N_API_KEY (Windows env valtozok).
 //
@@ -186,7 +186,28 @@ async function slateRows(apiUrl, apiKey) {
 // /rows es a POST /rows/update egyarant 405-ot ad ezen a peldanyon, es csak
 // ez a vegpont el. Az upsert CSAK a `data`-ban megadott mezoket irja at, a
 // tobbit bekene hagyja - tehat nem kell a teljes sort visszakuldeni.
+//
+// VESZELY: az upsert BESZUR, ha a filter nem fog sort. A `data` csak ket mezot
+// tartalmaz, tehat a beszurt sorban nem lenne match_name/market/selection -
+// egy csonka lab, ami vegigmenne a Slip Builderen. Ez akkor all elo, ha a
+// Clear Slate (08:00) a slate beolvasasa es az iras kozott urit. Ezert minden
+// iras elott ellenorizzuk, hogy a sor MEG megvan.
+async function rowExists(apiUrl, apiKey, legId) {
+  const u = new URL(`${apiUrl.replace(/\/$/, '')}/api/v1/data-tables/g6EjXi82TbW6VB91/rows`);
+  u.searchParams.set('filter', JSON.stringify({
+    type: 'and', filters: [{ columnName: 'leg_id', condition: 'eq', value: legId }],
+  }));
+  u.searchParams.set('limit', '1');
+  const r = await fetch(u, { headers: { 'X-N8N-API-KEY': apiKey } });
+  if (!r.ok) throw new Error(`lab ellenorzes: HTTP ${r.status} ${await r.text()}`);
+  const j = await r.json();
+  return (j.data || []).length > 0;
+}
+
 async function writeBoost(apiUrl, apiKey, legId, boostOdds) {
+  if (!await rowExists(apiUrl, apiKey, legId)) {
+    throw new Error(`a lab mar nincs a slate-en (torolt sor?) - NEM irok, hogy ne szuljek csonka sort`);
+  }
   const u = `${apiUrl.replace(/\/$/, '')}/api/v1/data-tables/g6EjXi82TbW6VB91/rows/upsert`;
   const r = await fetch(u, {
     method: 'POST',
@@ -203,7 +224,17 @@ async function writeBoost(apiUrl, apiKey, legId, boostOdds) {
 (async () => {
   const args = process.argv.slice(2);
   const doWrite = args.includes('--write');
-  const minPct = args.includes('--min') ? Number(args[args.indexOf('--min') + 1]) : 0;
+  // A --min ertekenek ki KELL derulnie: `--min` ertek nelkul vagy `--min abc`
+  // NaN-t adna, amire minden `pct >= minPct` hamis - nulla boost irodna be,
+  // miközben a kimenet sikeresnek latszik.
+  let minPct = 0;
+  if (args.includes('--min')) {
+    minPct = Number(args[args.indexOf('--min') + 1]);
+    if (!Number.isFinite(minPct)) {
+      console.error('A --min utan szam kell, pl. --min 3');
+      process.exit(1);
+    }
+  }
 
   const apiUrl = process.env.N8N_API_URL, apiKey = process.env.N8N_API_KEY;
   if (doWrite && (!apiUrl || !apiKey)) {
