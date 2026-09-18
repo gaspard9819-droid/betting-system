@@ -146,6 +146,29 @@ a szabály kikerült.
 Különböző meccsek függetlenek. Három „több mint 1,5 gól" láb három meccsről nem
 egyetlen feltétel — három külön fogadás.
 
+### Power de-vig, nem arányos
+
+A margó szétosztása a kimenetelek között nem egyenletes: a favourite-longshot
+bias miatt a hosszú lábakra aránytalanul több jut. A power módszer ezt kezeli —
+azt a `k` kitevőt keresi, amire `Σ pᵢ^k = 1`.
+
+**Mérve a `research/devig_check.js`-ben, 7228 meccsen:** a power jobb log-losst ad
+(0,96302 → 0,96245). Az arányos módszer torzítása ugyanott: az 1,0–1,6 sávban
+71,88%-ot becsül 73,19% helyett, az 5,0+ sávban 14,35%-ot 13,26% helyett.
+
+Az a mérés több könyv legjobb árán (MaxC) azt találta, hogy a power ott alig
+számít — a MaxC overroundja −0,03%, nincs mit szétosztani. **Itt egy könyv ára
+van, 4–6% overrounddal**, tehát van.
+
+A saját árainkon (863 piac, 2026-09-19) a power ebbe az irányba mozdít:
+1,0–1,6 sáv **+2,80pp**, 3,2–5,0 sáv −1,97pp, 5,0+ sáv −3,82pp.
+
+**Mit változtat a gyakorlatban:** nem a választást, hanem a becslést. A margó —
+és vele a `legCost` — módszerfüggetlen, tehát a szelvény ugyanaz marad. A
+**bejövési esély** lesz pontosabb: a mai 2,0-s szelvényen 46,5% → 47,7%.
+
+Összevetés a régi módszerrel: `BETTING_DEVIG=proportional node local/cli.js ...`
+
 ## Mit mér, és mennyire pontosan
 
 A számolt margók egybeesnek a `research/README.md` méréseivel:
@@ -165,9 +188,11 @@ más meccseiről származnak.
 - **Nincs visszamérés.** Nincs naplózás, nincs elszámolás. Nem fogod megtudni, hogy a
   margó-minimalizálás hozott-e bármit. A margó *előre* becsült, minden szelvény mellett
   ott van.
-- **A margó becslés, nem mérés.** Egy könyvből de-vigelve, arányos levonással. Ez
-  favorit-longshot torzítást hordoz: a rövid lábon a valódi margó kisebb, a hosszún
-  nagyobb, mint amit ez ad (`research/devig_check.js`, 7228 meccsen mérve).
+- **A margó mért, a szétosztása becsült.** Az implikált valószínűségek összegének
+  többlete valódi szám. Hogy ebből melyik kimenetelre mennyi jut, az becslés — a
+  power módszer a mért torzítás irányába mozdít, de hogy a **mérték** is helyes-e,
+  azt a saját árainkon nem tudjuk ellenőrizni: ahhoz eredmény kellene, amit nem
+  naplózunk.
 - **Csak Tippmixpro.** A Vegas.hu külön forrás lenne.
 - **Nincs kupa-adat, ha nincs kupaforduló.** A BL/EL/KL tournament id-k érvényesek, de
   a 96 órás ablakban 0 meccs, ha épp nincs játéknap.

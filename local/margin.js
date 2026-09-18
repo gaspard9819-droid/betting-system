@@ -35,6 +35,47 @@
 // draga piac, hanem rossz szamitas.
 const MAX_PLAUSIBLE_MARGIN = 25;
 
+// Power de-vig: biszekcioval keressuk a k kitevot, amire sum(p_i^k) = 1.
+//
+// MIERT EZ ES NEM AZ ARANYOS: az aranyos levonas (p_i / osszeg) minden
+// kimenetelrol ugyanakkora HANYADOT von le, de a konyv nem igy dolgozik. A
+// favourite-longshot bias miatt a hosszu labakra aranytalanul tobb margo jut.
+//
+// MERVE a research/devig_check.js-ben, 7228 meccsen (6228 Pinnacle zaroarral):
+// a power jobb log-losst ad, 0.96302 -> 0.96245. Az aranyos modszer torzitasa
+// ugyanott: 1.0-1.6 savban 71.88%-ot becsul 73.19% helyett (-1.32pp), az 5.0+
+// savban 14.35%-ot 13.26% helyett (+1.09pp).
+//
+// FONTOS KULONBSEG a devig_check.js helyzetehez kepest: ott a `market_prob`
+// TOBB konyv legjobb arabol (MaxC) keszult, aminek az overroundja -0.03% -
+// nincs arres, amit szet lehetne osztani, ezert ott a power alig valtoztatott.
+// Itt EGY konyv ara van, 4-6% overrounddal, tehat van mit szetosztani.
+//
+// A sajat arainkon merve (863 piac, 2026-09-19) a power ebbe az iranyba mozdit:
+//   1.0-1.6: 77.90% -> 80.70%  (+2.80pp)
+//   3.2-5.0: 24.35% -> 22.37%  (-1.97pp)
+//   5.0+:    12.85% ->  9.04%  (-3.82pp)
+//
+// Ez a torzitas javitasanak IRANYA. Hogy a mertek is helyes-e, azt a sajat
+// arainkon nem tudjuk - ahhoz eredmeny kellene, amit nem naplozunk.
+function powerProbs(odds) {
+  const raw = odds.map(o => 1 / o);
+  let lo = 0.5, hi = 5;
+  for (let i = 0; i < 60; i++) {
+    const k = (lo + hi) / 2;
+    const sum = raw.reduce((a, x) => a + Math.pow(x, k), 0);
+    if (sum > 1) lo = k; else hi = k;
+  }
+  const k = (lo + hi) / 2;
+  const p = raw.map(x => Math.pow(x, k));
+  const s = p.reduce((a, b) => a + b, 0);
+  return p.map(x => x / s);
+}
+
+// A de-vig modszere. Alapertelmezes a power; a 'proportional' az osszevetes
+// kedveert marad (BETTING_DEVIG=proportional kornyezeti valtozoval).
+const DEVIG_METHOD = process.env.BETTING_DEVIG === 'proportional' ? 'proportional' : 'power';
+
 function devig(picks) {
   if (!picks || picks.length < 2) return null;
   const ipSum = picks.reduce((s, p) => s + 1 / p.odds, 0);
@@ -45,10 +86,15 @@ function devig(picks) {
   // Atfedo kimenetelek: a szam nem margo. Inkabb hianyzik a piac, mint hogy
   // hamis koltseggel keruljon a rangsorba.
   if (marginPct > MAX_PLAUSIBLE_MARGIN) return null;
-  return {
-    probs: picks.map(p => (1 / p.odds) / ipSum),
-    marginPct,
-  };
+
+  // A MARGO ugyanaz mindket modszerrel - az az implikalt osszeg tobblete.
+  // Csak a valoszinusegek SZETOSZTASA kulonbozik.
+  const odds = picks.map(p => p.odds);
+  const probs = DEVIG_METHOD === 'power'
+    ? powerProbs(odds)
+    : picks.map(p => (1 / p.odds) / ipSum);
+
+  return { probs, marginPct, method: DEVIG_METHOD };
 }
 
 // --------------------------------------------------------- lab-koltseg savok
@@ -286,4 +332,4 @@ function slipValue(legs) {
   };
 }
 
-module.exports = { devig, bandCost, referenceMargin, marketFamily, isUsableMarket, hasOverlappingOutcomes, legsFrom, allLegs, slipValue, BAND_COST, MARKET_REF };
+module.exports = { devig, powerProbs, DEVIG_METHOD, bandCost, referenceMargin, marketFamily, isUsableMarket, hasOverlappingOutcomes, legsFrom, allLegs, slipValue, BAND_COST, MARKET_REF };
