@@ -201,12 +201,20 @@ fájlba, a `local/pool/` mappába.
 
 Egy ár helyessége nem attól függ, hogy tettünk-e rá pénzt. A `log.js` minden
 lekért piacot naplóz, a `calib.js` pedig **az összeset** elszámolja a
-football-data végeredményéből — napi ~1200 kiértékelhető piac a néhány megtett
-szelvény helyett.
+football-data végeredményéből — nem csak azt a néhányat, amire szelvény került.
 
-Ez a különbség dönt hét és év között. A `research/README.md:784` szerint
-160–220 fogadásnál a ROI konfidencia-intervalluma túl széles bármihez; a
-kalibráció viszont hetekben megoldódik.
+**A tényleges ütem, mérve 2026-09-19:** a 96 órás ablakban 43 hazai
+bajnoksági meccs volt, **12,1 elszámolható piac meccsenként**, összesen 520.
+Ez a 43 meccs két játéknapra esett (09-19 és 09-20), tehát a minta nagyjából
+**fordulónként 500–600 piaccal** nő, nem naponta ennyivel. A napi futtatás nem
+ezért kell, hanem mert a 96 órás ablakba folyamatosan lépnek be új meccsek, és
+egy kihagyott nap meccsei véglegesen kimaradnak.
+
+Ez még így is nagyságrendekkel több, mint a megtett szelvények száma. A
+`research/README.md:784` szerint 160–220 fogadásnál a ROI
+konfidencia-intervalluma túl széles bármihez; a kalibráció hetekben
+megoldódik. Hogy hány hét, azt a `calib.js` mondja meg — kiírja, hány piac
+kellene az észlelt hatáshoz.
 
 ### Árat naplóz, nem valószínűséget
 
