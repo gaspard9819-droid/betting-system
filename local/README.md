@@ -1,7 +1,7 @@
 # Helyi szelvényépítő
 
-Tippmixpro-árakból, minden piacon, n8n és Discord nélkül. **Egyik script sem ír
-sehova** — csak olvas (WAMP feed + promóciós oldal) és a konzolra ír.
+Tippmixpro-árakból, minden piacon, n8n és Discord nélkül. A szelvényépítő
+**nem ír sehova** — csak olvas (WAMP feed + promóciós oldal) és a konzolra ír.
 
 ```
 node local/cli.js --cel 2.0                 szelvény 2.0-s eredőre
@@ -11,6 +11,14 @@ node local/cli.js --cel 2.0 --db 2          két különböző szelvény
 node local/cli.js --boost                   Szuper odds kínálat
 node local/cli.js --promok                  aktív promóciók
 node local/cli.js --piacok                  piacok margó szerint
+```
+
+A visszamérés két külön script, lásd lent:
+
+```
+node local/log.js                           a mai kínálat naplózása
+node local/calib.js                         a naplózott árak kiértékelése
+node local/calib_test.js                    53 ellenőrzés a kiértékelőre
 ```
 
 ## Miért így
@@ -183,16 +191,103 @@ A számolt margók egybeesnek a `research/README.md` méréseivel:
 Ugyanaz a nagyságrend és sorrend. Az eltérés napi ingadozás — a README-számok más nap
 más meccseiről származnak.
 
+## Visszamérés — `log.js` + `calib.js`
+
+A margó *előre* becsült, és sokáig semmi nem mondta meg, hogy a becslés helyes-e.
+Ez a két script megmondja. A `log.js` az egyetlen darab itt, ami ír — helyi
+fájlba, a `local/pool/` mappába.
+
+### Nem a megtett fogadásokat méri, hanem a teljes kínálatot
+
+Egy ár helyessége nem attól függ, hogy tettünk-e rá pénzt. A `log.js` minden
+lekért piacot naplóz, a `calib.js` pedig **az összeset** elszámolja a
+football-data végeredményéből — napi ~1200 kiértékelhető piac a néhány megtett
+szelvény helyett.
+
+Ez a különbség dönt hét és év között. A `research/README.md:784` szerint
+160–220 fogadásnál a ROI konfidencia-intervalluma túl széles bármihez; a
+kalibráció viszont hetekben megoldódik.
+
+### Árat naplóz, nem valószínűséget
+
+Az ár **mérés**, a valószínűség **becslés** — és a becslés módszere változhat.
+Ha a valószínűséget mentenénk, minden módszerváltás érvénytelenítené a régi
+naplót. Így a `calib.js` bármelyik módszert visszamenőleg pontozhatja ugyanazon
+az adaton.
+
+### Mit naplóz, és mit nem
+
+Mérve 2026-09-19, 43 meccses kínálaton: a teljes kínálat 12 213 piac, gzip után
+**788 KB** — napi egy futással ~290 MB évente. A pontszámból elszámolható
+családok ugyanabból 3190 piac, **167 KB**.
+
+A különbség nem tömörítés kérdése: amit eldobunk, azt a football-data
+végeredményéből **soha** nem lehetne elszámolni (játékos-statisztikák, lapok,
+lesek, időszakaszok). Nincs hozzá mérő. Ami marad, az az öt család, amire a
+`margin.js` `MARKET_REF`-je mért margó-referenciát tart, **és** ami a
+végeredmény függvénye. A `--mind` mindent ment, ha valaki a teljes kínálat
+margó-szerkezetét vizsgálná.
+
+A snapshotok **mérések és nem reprodukálhatók** — ugyanaz a kategória, mint a
+`research/data/tippmix/` kézi árai, amiket a `.gitignore` kifejezetten
+bennhagy. Ezért nincsenek kizárva.
+
+### A fő metrika: log-loss piaconként
+
+Egy piac kimenetelei teljes, kizáró rendszert alkotnak: pontosan egy nyer. A
+de-vigelt valószínűségek eloszlást adnak rajtuk, tehát a helyes pontszám a
+nyertes kimenetel `-ln(p)`-je, **piaconként egy megfigyelés**.
+
+Lábanként számolva ugyanaz az információ többször számítana (egy piac lábai nem
+függetlenek, összegük 1), és a konfidencia-intervallum hamisan szűk lenne. A
+power és az arányos módszer **párosítva** kerül összevetésre — ugyanaz a piac,
+ugyanaz a kimenetel, két módszerrel pontozva. A `timing.js` ugyanezt csinálta
+(+0,403pp, t=7,55): a párosított teszt sokkal érzékenyebb, mint két átlag
+összevetése.
+
+A kimenet **kiírja a t-t, és kimondja, ha `|t| < 2`** — plusz azt is, hány piac
+kellene az észlelt hatáshoz. Enélkül egy 0,001-es log-loss különbség 40 piacon
+eredménynek látszana.
+
+### Két hiba, amit a `calib_test.js` fogott meg
+
+Mindkettő **csendes** lett volna: kevesebb sor a jelentésben, semmi hibaüzenet.
+
+1. **A `BETTING_POOL_DIR` modul-szinten oldódott fel**, a `require`
+   pillanatában — a teszt viszont csak utána állítja be, tehát a valódi
+   naplón futott volna. A 45–46. ellenőrzés 0 piacot látott.
+2. **A dedup kulcsa meccs+kód volt**, de a `code` minden gólszám-vonalra
+   ugyanaz (`47-3`, lásd `catalog.js:80`). A vonalak egymást írták felül:
+   3190 naplózott piacból 950 maradt — **a minta kétharmada tűnt el.** Az 52–53.
+   ellenőrzés ezt méri.
+
+### Ami még nincs elszámolva
+
+A **hendikep-piacok naplózva vannak, de nincsenek elszámolva** (napi ~730 piac).
+A magyar címke parszolása — előjel, csapatoldal, egész vonal push-a — hibázásra
+hajlamos, és egy elnézett előjel *csendben* fordítaná meg a kalibrációt. Az
+adat viszont olcsó, és a mai árat holnap nem lehet újra felvenni, ezért gyűlik.
+
+A `node local/calib.js --reszletek` kiírja, mennyi piac veszik el velük — abból
+lehet eldönteni, megéri-e felvenni őket az `outcomeOf()`-ba. Egyenként, mért
+címke-alakkal, nem mintára találgatva.
+
 ## Korlátok — amit ez nem tud
 
-- **Nincs visszamérés.** Nincs naplózás, nincs elszámolás. Nem fogod megtudni, hogy a
-  margó-minimalizálás hozott-e bármit. A margó *előre* becsült, minden szelvény mellett
-  ott van.
-- **A margó mért, a szétosztása becsült.** Az implikált valószínűségek összegének
-  többlete valódi szám. Hogy ebből melyik kimenetelre mennyi jut, az becslés — a
-  power módszer a mért torzítás irányába mozdít, de hogy a **mérték** is helyes-e,
-  azt a saját árainkon nem tudjuk ellenőrizni: ahhoz eredmény kellene, amit nem
-  naplózunk.
+- **A visszamérés a becslést méri, nem a hozamot.** A `calib.js` azt mondja meg,
+  helyesek-e a de-vigelt valószínűségek — tehát a kiírt bejövési esély és a
+  láb-költség helyes-e. Azt nem, hogy nyersz-e: a margó-minimalizálás haszna
+  aritmetikai (kisebb költség azonos kimenetel mellett mindig jobb), nem
+  előrejelzési.
+- **A kalibráció csak a hazai bajnokságokra áll.** A football-data nem ad
+  kupákat, tehát a BL/EL/KL lábak sosem kerülnek bele. Rájuk marad a
+  feltételezés, hogy a de-vig ugyanúgy viselkedik.
+- **A csapatnév-feloldás rothad.** Új vagy promovált csapat új rövidítést hoz
+  (`Atl. Madrid`, `E. Frankfurt`), és a tünete csendes: a meccs kiesik a
+  mintából. Két helyen van megfogva — a `calib_test.js` 41. ellenőrzése minden
+  naplózott nevet feloldani próbál, és a `--reszletek` kiírja a párosítatlanokat.
+  A tábla a `calib.js` `FEED_ALIAS`-a, **nem** a `research/teams.js` — azt a
+  `settle_test.js` a deployolt node-hoz tartja szinkronban.
 - **Csak Tippmixpro.** A Vegas.hu külön forrás lenne.
 - **Nincs kupa-adat, ha nincs kupaforduló.** A BL/EL/KL tournament id-k érvényesek, de
   a 96 órás ablakban 0 meccs, ha épp nincs játéknap.
@@ -221,6 +316,9 @@ Az új id-t a `local/catalog.js` `LEAGUES` / `CUPS` tömbjébe kell írni.
 | `build.js` | szelvényépítés (a `research/slip.js` DFS-e, margó-rangsorral) |
 | `promos.js` | promóciók a publikus oldalról |
 | `cli.js` | belépési pont |
+| `log.js` | a kínálat naplózása a `pool/` mappába — **az egyetlen, ami ír** |
+| `calib.js` | a naplózott árak kiértékelése a végeredményből |
+| `calib_test.js` | 53 ellenőrzés, nagyrészt valós adaton |
 
 A `research/` scriptek **változatlanok** — azok mért eredményeket szolgáltattak, és egy
 refaktor többet kockáztat, mint amennyit ér. Az `workflows/` szintén érintetlen: az n8n

@@ -56,8 +56,11 @@ const MAX_PLAUSIBLE_MARGIN = 25;
 //   3.2-5.0: 24.35% -> 22.37%  (-1.97pp)
 //   5.0+:    12.85% ->  9.04%  (-3.82pp)
 //
-// Ez a torzitas javitasanak IRANYA. Hogy a mertek is helyes-e, azt a sajat
-// arainkon nem tudjuk - ahhoz eredmeny kellene, amit nem naplozunk.
+// Ez a torzitas javitasanak IRANYA. Hogy a MERTEK is helyes-e, az a sajat
+// arainkon 2026-09-19 ota merheto: a local/log.js naplozza a kinalatot, a
+// local/calib.js pedig parositva pontozza a ket modszert a vegeredmenyen.
+// Amig nincs eleg lejatszott meccs, a kerdes NYITVA van - a calib.js kiirja a
+// t-t, es kimondja, ha a minta nem donti el.
 function powerProbs(odds) {
   const raw = odds.map(o => 1 / o);
   let lo = 0.5, hi = 5;
