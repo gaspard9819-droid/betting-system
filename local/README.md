@@ -240,6 +240,30 @@ A snapshotok **mérések és nem reprodukálhatók** — ugyanaz a kategória, m
 `research/data/tippmix/` kézi árai, amiket a `.gitignore` kifejezetten
 bennhagy. Ezért nincsenek kizárva.
 
+### A napi futtatás
+
+Windows Feladatütemező, **„Betting napi naplozas"**, minden nap 09:00, a
+`local/naplozas.cmd`-t indítja. Nem kell hozzá nyitott session.
+
+- **Ha a gép 09:00-kor ki van kapcsolva vagy nincs bejelentkezve**, a feladat a
+  következő bejelentkezés után bepótolja (`StartWhenAvailable`). Ez nem
+  kényelmi beállítás: egy kihagyott nap meccsei véglegesen kimaradnak.
+- A kimenet a `local/naplozas.log`-ba megy (a `.gitignore` kizárja). Egy
+  ütemezett futás hibája **csak ott** látszik.
+- A `node` teljes elérési úttal hívódik, mert az ütemező környezete nem
+  ugyanazt a `PATH`-t látja, mint egy interaktív shell. Ha a node költözik,
+  a `.cmd` egy sorát kell javítani.
+
+```powershell
+Get-ScheduledTaskInfo -TaskName 'Betting napi naplozas'     # mikor futott, mi lett
+Start-ScheduledTask   -TaskName 'Betting napi naplozas'     # futtatás most
+Unregister-ScheduledTask -TaskName 'Betting napi naplozas'  # törlés
+```
+
+Ellenőrizve 2026-09-19: **magán az ütemezőn keresztül** indítva
+`LastTaskResult = 0`, a snapshot megírva. A `.cmd` kézi futtatása ezt nem
+bizonyította volna — az ütemező más környezetben indít.
+
 ### A fő metrika: log-loss piaconként
 
 Egy piac kimenetelei teljes, kizáró rendszert alkotnak: pontosan egy nyer. A
