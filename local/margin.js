@@ -156,6 +156,39 @@ function referenceMargin(marketName) {
 // vonatkozik: egy harom kimenetelu 1X2 6.15%-a nem azt jelenti, hogy minden
 // egyes lab 6.15%-ot visz, hanem hogy a konyv ennyit tart meg a piac egeszen.
 // Egy labra eso resz ennek az aranyos hanyada.
+//
+// AZ EGYENLETES OSZTAS TUDOTT KOZELITES. A margo a valosagban NEM oszlik el
+// egyenletesen a kimenetelek kozott: a favourite-longshot bias miatt a hosszu
+// labra tobb jut. A powerProbs ezt mar kiszamolja - a lab sajat arrese
+// (1/odds - p_power), de a legCost nem hasznalja fel.
+//
+// MERVE 2026-09-19, 1138 piacon (pool_2026-09-19_0159), power szerint:
+//
+//   oddssav     egyenletes (ez)   power szerint   elteres
+//   1.00-1.6        3.371%           2.172%       -1.20pp
+//   1.60-2.0        3.705%           3.633%       -0.07pp
+//   2.00-3.2        2.970%           3.318%       +0.35pp
+//   3.20-5.0        2.977%           3.724%       +0.75pp
+//   5.00-8.0        3.281%           4.278%       +1.00pp
+//   8.00+           3.044%           3.394%       +0.35pp
+//
+// Tehat az egyenletes osztas TULTERHELI a rovid labat es ALULBUNTETI a
+// hosszut. Az irany a rovid-odds szelvenyekre konzervativ, nem ellenuk hat.
+//
+// MIERT MARAD MEGIS EGYENLETES, ket okbol:
+//
+// 1. A bandCost ugyanazon a tengelyen 0.23 -> 12.32 kozott mozog, tehat a
+//    +-1pp korrekcio a rangsort nem forgatja fel. Mas szamot adna, nem mas
+//    szelvenyt.
+// 2. A power MERTEKE a sajat arainkon meg nincs igazolva - csak az IRANYA
+//    (devig_check.js, 7228 meccs, Pinnacle zaroaron). Beepiteni annyi lenne,
+//    mint egy nem mert feltetelezest beleirni a rangsorolasba. A local/calib.js
+//    pont ezt donti el, amint van eleg lejatszott meccs a pool/-ban.
+//
+// Ha a calib.js megerositi a power mertekét, EZ a hely, ahol a
+// dv.probs[i]-bol szamolt arres az egyenletes osztas helyebe lep. A
+// `referencia` agon (nincs dv) akkor is egyenletes marad, mert ott nincs
+// kimenetel-szintu valoszinuseg.
 
 // Piac-csalad: a vonalszam nelkuli alak.
 //
