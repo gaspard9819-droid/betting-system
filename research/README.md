@@ -327,8 +327,9 @@ Ezért nem kell modell a kupákhoz. Ami hiányzik, és amit a kimenet **jelez**:
 | `tippmix_odds` | **valódi ár**, nem a `tippmixRatio()` becslése |
 
 **Az egy-könyves de-vig korlátja:** a margót arányosan vonjuk le, ami azt feltételezi,
-hogy a könyv minden kimenetelre ugyanakkora felárat tesz. A valóságban a favorit-oldal
-jellemzően jobban meg van vágva (favourite-longshot bias). A hatás a rangsorra kicsi
+hogy a könyv minden kimenetelre ugyanakkora felárat tesz. A valóságban az esélytelen
+oldal jellemzően jobban meg van vágva (favourite-longshot bias), így az arányos de-vig
+az esélytelen `market_prob`-ját kissé felül-, a favoritét alulbecsüli. A hatás a rangsorra kicsi
 (egy meccsen belül monoton), és a szelvényépítő csak rangsorra használja — de a
 `market_prob` abszolút értéke itt kevésbé pontos, mint a top5-ön.
 
